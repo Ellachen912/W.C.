@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Winston City Avery V2.5</title>
+<style>
+:root{--ink:#3b3550;--muted:#6f6880;--accent:#e2643f;--card:#fffaf2}
+html,body{margin:0;height:100%;font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;color:var(--ink);background:#e3f6fd}
+.wrap{display:flex;flex-direction:column;height:100%}
+.stage{position:relative;flex:1;min-height:0;background:linear-gradient(#8fd3f5,#e3f6fd 70%)}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.tag{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.85);border-radius:999px;padding:6px 14px;font-size:15px}
+.hint{position:absolute;right:12px;top:12px;font-size:13px;color:var(--muted);background:rgba(255,255,255,.7);border-radius:999px;padding:6px 12px}
+.panel{background:var(--card);padding:10px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -6px 18px rgba(59,53,80,.1);max-height:46%;overflow:auto}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+.row b{font-size:14px;color:var(--muted);font-weight:600;min-width:40px}
+.row button{font:inherit;font-size:16px;min-height:42px;padding:0 16px;border-radius:999px;border:1.5px solid #e6dccb;background:#fff;color:var(--ink);cursor:pointer}
+.row button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.row button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.err{position:absolute;inset:40% 16px auto;text-align:center;display:none}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head><body>
+<div class="wrap">
+  <div class="stage"><canvas id="c"></canvas><div class="tag">Avery V2.0（兔耳女孩）</div><div class="hint">用手指轉著看</div><div class="err" id="err">畫面載入不了，請重新整理。</div></div>
+  <div class="panel" id="panel"></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+/* ---------- 場景 ---------- */
+const cv=document.getElementById('c');
+const r=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true,preserveDrawingBuffer:true});
+r.setPixelRatio(Math.min(2,devicePixelRatio)); r.shadowMap.enabled=true; r.shadowMap.type=THREE.PCFSoftShadowMap;
+r.toneMapping=THREE.NoToneMapping; r.outputColorSpace=THREE.SRGBColorSpace;
+const scene=new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff,0xe6ddd2,2.0));
+const sun=new THREE.DirectionalLight(0xfff6e8,1.75); sun.position.set(-3,6,4); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024);
+Object.assign(sun.shadow.camera,{left:-2,right:2,top:2,bottom:-2,near:1,far:15}); sun.shadow.bias=-.0005; sun.shadow.normalBias=.02; scene.add(sun);
+const cam=new THREE.PerspectiveCamera(30,1,.05,50); cam.position.set(.5,1.05,2.6);
+const ctl=new OrbitControls(cam,cv); ctl.target.set(0,.55,0); ctl.enableDamping=true; ctl.enablePan=false; ctl.minDistance=1.4; ctl.maxDistance=5.5; ctl.maxPolarAngle=1.45; ctl.update();
+
+const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:0,...o});
+function add(parent,geo,mat,p=[0,0,0],rot=[0,0,0],s=[1,1,1]){ const m=new THREE.Mesh(geo,mat); m.position.set(...p); m.rotation.set(...rot); m.scale.set(...s); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; }
+
+// 地面：六角形小平台（和遊戲一樣的米色頂面、咖啡色土）
+function hex(rad,h,y,mat){ const s=new THREE.Shape(); for(let i=0;i<6;i++){ const a=i*Math.PI/3; i?s.lineTo(rad*Math.cos(a),rad*Math.sin(a)):s.moveTo(rad*Math.cos(a),rad*Math.sin(a)); } s.closePath();
+  const g=new THREE.ExtrudeGeometry(s,{depth:h,bevelEnabled:true,bevelThickness:.03,bevelSize:.03,bevelSegments:2}); g.rotateX(-Math.PI/2); const o=new THREE.Mesh(g,mat); o.position.y=y; o.receiveShadow=true; scene.add(o); }
+hex(1.45,.22,-.27,M('#c4925f')); hex(1.5,.06,-.06,M('#efe3c4',{roughness:.95}));
+const grass=M('#8cc56b');
+for(const [x,z,s] of [[-1.05,-.55,1],[1.0,-.75,.8],[-.9,.75,.7]]){ add(scene,new THREE.SphereGeometry(.13*s,12,8),grass,[x,.1*s,z]); add(scene,new THREE.SphereGeometry(.1*s,12,8),grass,[x+.12*s,.07*s,z+.05]); }
+
+
+/* ---------- 顏色 ---------- */
+const mSkin=M('#ffdcc6',{roughness:.6}), mHair=M('#503b32',{roughness:.78,side:THREE.DoubleSide}), mDress=M('#cbbdf5',{roughness:.65,side:THREE.DoubleSide}),
+  mWhite=M('#fbfaf7',{roughness:.6}), mInk=M('#22202a',{roughness:.3}), mBrow=M('#24202a'), mLip=M('#c0604f'), mBlush=M('#f7a0a0',{transparent:true,opacity:.35}),
+  mFur=M('#fdeef2',{roughness:1}), mPink=M('#f58fa6',{roughness:.9}), mYel=M('#f4c63d');
+
+/* ---------- 做一個人：每個部位是一塊硬零件，關節只會轉 ---------- */
+const person=new THREE.Group(); scene.add(person);
+const body=new THREE.Group(); person.add(body);
+const lathe=(pts,seg=36)=>new THREE.LatheGeometry(pts.map(([x,y])=>new THREE.Vector2(x,y)),seg);
+// 洋裝（A 字裙，一整塊硬的，腿在裡面擺）
+const dress=add(body,lathe([[0,.31],[.16,.275],[.186,.27],[.192,.285],[.145,.39],[.112,.45],[.1,.49],[.07,.52],[.05,.525],[0,.525]]),mDress,[0,0,0],[0,0,0],[1,1,.78]);
+add(body,new THREE.CylinderGeometry(.045,.05,.06,16),mSkin,[0,.535,0]);   // 脖子
+// 腿＋襪子＋鞋子（鞋上有小花）
+function leg(x){ const g=new THREE.Group(); g.position.set(x,.26,0); body.add(g);
+  add(g,new THREE.CapsuleGeometry(.042,.1,4,14),mSkin,[0,-.09,0]);
+  add(g,new THREE.CylinderGeometry(.047,.047,.075,16),mWhite,[0,-.185,0]);
+  add(g,new THREE.TorusGeometry(.047,.01,8,18),mWhite,[0,-.15,0],[Math.PI/2,0,0]);
+  add(g,new THREE.SphereGeometry(1,18,12),mWhite,[0,-.228,.022],[0,0,0],[.056,.034,.088]);
+  add(g,new THREE.TorusGeometry(.05,.009,6,18),mWhite,[0,-.208,.012],[Math.PI/2-.25,0,0]);
+  const f=new THREE.Group(); f.position.set(0,-.2,.078); f.rotation.x=-.9; g.add(f);
+  add(f,new THREE.SphereGeometry(.009,8,6),mYel);
+  for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; add(f,new THREE.SphereGeometry(1,8,6),M('#ffe58a'),[Math.cos(a)*.014,Math.sin(a)*.014,-.002],[0,0,a],[.011,.007,.005]); }
+  return g; }
+const legL=leg(.062), legR=leg(-.062);
+// 手臂（沒有袖子）
+function arm(x){ const g=new THREE.Group(); g.position.set(x,.485,0); body.add(g);
+  add(g,new THREE.SphereGeometry(.04,12,10),mSkin);
+  add(g,new THREE.CapsuleGeometry(.034,.15,4,12),mSkin,[0,-.1,0]);
+  add(g,new THREE.SphereGeometry(1,14,10),mSkin,[0,-.215,0],[0,0,0],[.036,.044,.04]); return g; }
+const armL=arm(.118), armR=arm(-.118);
+
+// 頭
+const head=new THREE.Group(); head.position.set(0,.76,0); body.add(head);
+const face=new THREE.Group(); head.add(face); face.scale.set(1.05,.97,1);
+const HR=.23;
+add(face,new THREE.SphereGeometry(HR,40,28),mSkin);
+const P=(yaw,pitch,rad=HR)=>new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(rad);
+function onHead(obj,yaw,pitch,rad=HR){ const p=P(yaw,pitch,rad); obj.position.copy(p); obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),p.clone().normalize()); face.add(obj); return obj; }
+const wrap=(m,rz=0)=>{ const g=new THREE.Group(); g.add(m); g.rotation.z=rz; return g; };
+const eyes=[];
+for(const s of [-1,1]){
+  const e=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),M('#4b3430',{roughness:.76})); e.scale.set(.024,.034,.012); onHead(e,s*.33,-.02,HR*.995); eyes.push(e);
+  for(const [c,p,sc] of [['#634638',[0,-.10,.75],[.69,.77,.26]],['#302629',[0,.02,.96],[.47,.59,.12]],['#fff9ef',[-.26,.32,1.02],[.19,.15,.10]]]){const m=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshBasicMaterial({color:c}));m.position.set(...p);m.scale.set(...sc);e.add(m);}
+  const la=new THREE.Mesh(new THREE.CapsuleGeometry(.004,.018,3,6),mInk); la.rotation.z=Math.PI/2; onHead(wrap(la,s*.5),s*.45,.035,HR*.998);
+  {const pos=[],idx=[],N=48,K=8;for(let i=0;i<=N;i++){const t=i/N,x=(t-.5)*.054,cy=.009*Math.sin(Math.PI*t)-.001*t,w=.006*Math.pow(Math.sin(Math.PI*t),.48)*(1-.43*t);for(let j=0;j<=K;j++){const u=j/K*2-1;const p=P(s*.33+s*x/HR,.21+(cy+w*u)/HR,HR+.004+.0018*(1-u*u));pos.push(p.x,p.y,p.z);}}for(let i=0;i<N;i++)for(let j=0;j<K;j++){const a=i*(K+1)+j,b=a+K+1;idx.push(a,b,a+1,b,b+1,a+1);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();add(face,g,new THREE.MeshBasicMaterial({color:'#49352e',side:THREE.DoubleSide}));}
+  const k=new THREE.Mesh(new THREE.SphereGeometry(1,16,10),mBlush); k.scale.set(.04,.024,.006); onHead(k,s*.55,-.2,HR*.994);
+  add(face,new THREE.SphereGeometry(1,14,10),mSkin,[s*HR*1.0,-.035,0],[0,0,0],[.028,.046,.036]);
+}
+{const shape=new THREE.Shape();shape.moveTo(-.016,-.018);shape.quadraticCurveTo(-.019,-.018,-.017,-.013);shape.lineTo(-.003,.023);shape.quadraticCurveTo(0,.028,.003,.023);shape.lineTo(.017,-.013);shape.quadraticCurveTo(.019,-.018,.014,-.018);shape.closePath();onHead(new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.007,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:3,steps:1,curveSegments:12}),M('#dc925e')),0,-.15,HR*.997);}
+{ const arc=Math.PI*.62, m=new THREE.Mesh(new THREE.TorusGeometry(.036,.0052,8,20,arc),mLip); m.rotation.z=Math.PI+(Math.PI-arc)/2; onHead(wrap(m),0,-.24,HR*.994); }
+
+// Sculpted bob: raised forehead clearance, rounded volume and directional locks.
+const smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+function hairline(y){const f=Math.abs(y),pts=[[0,.49],[.45,.48],[.72,.43],[.95,.31],[1.18,-.10],[1.5,-.43],[2.2,-.56],[Math.PI,-.58]];let v=-.58;for(let i=1;i<pts.length;i++)if(f<=pts[i][0]){v=pts[i-1][1]+(pts[i][1]-pts[i-1][1])*smooth((f-pts[i-1][0])/(pts[i][0]-pts[i-1][0]));break;}return v+(1-smooth(f/1.0))*(.065*Math.sin(3*y+.4)+.025*Math.cos(7*y))+.045*smooth((f-1)/.6)*Math.cos(6*y);}
+{const pos=[],idx=[],N=192,K=64;for(let i=0;i<=N;i++){const y=-Math.PI+2*Math.PI*i/N,hl=hairline(y);for(let j=0;j<=K;j++){const t=j/K,p=hl+(Math.PI/2-hl)*t;const edge=.018+.082*smooth(t/.12),flow=.023*Math.sin(Math.PI*t)*Math.cos(9*y+3*t);const back=smooth((Math.abs(y)-.95)/1.5);const volume=back*Math.pow(Math.sin(Math.PI*t),.8)*(.095+.025*Math.cos(11*y+2.4*t));const sweep=y+.48*t;const ridges=.014*Math.sin(Math.PI*t)*Math.cos(18*sweep);const r=HR*(1+edge+flow+volume+ridges);const v=P(y,p,r);pos.push(v.x,v.y,v.z);}}for(let i=0;i<N;i++)for(let j=0;j<K;j++){const a=i*(K+1)+j,b=a+K+1;idx.push(a,b,a+1,b,b+1,a+1);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();add(face,g,mHair);}
+function sweptLock(y0,p0,y1,p1,w){const pos=[],idx=[],N=40,K=20;for(let i=0;i<=N;i++){const t=i/N,y=y0+(y1-y0)*t,p=p0+(p1-p0)*t;const width=w*Math.pow(Math.sin(Math.PI*t),.65);for(let j=0;j<=K;j++){const u=j/K*2-1,yy=y+u*width;const rad=HR*(1.095+.065*Math.sin(Math.PI*t)*Math.sqrt(Math.max(0,1-u*u)));const v=P(yy,p,rad);pos.push(v.x,v.y,v.z);}}for(let i=0;i<N;i++)for(let j=0;j<K;j++){const a=i*(K+1)+j,b=a+K+1;idx.push(a,b,a+1,b,b+1,a+1);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();add(face,g,mHair);}
+sweptLock(.24,1.37,-.50,.49,.25);sweptLock(.38,1.28,-.92,.36,.22);sweptLock(.35,1.35,.91,.39,.22);
+// 兔耳髮箍
+const band=new THREE.Group(); band.rotation.x=.1; face.add(band);
+const BR=HR*1.22; add(band,new THREE.TorusGeometry(BR,.034,10,40,Math.PI*.92),mFur,[0,0,0],[0,0,Math.PI*.04]);
+const ears=[]; for(const s of [-1,1]){ const g=new THREE.Group(); g.position.set(s*.1,Math.sqrt(BR*BR-.01)-.01,0); g.rotation.z=-s*.2; band.add(g); ears.push(g);
+  add(g,new THREE.SphereGeometry(1,20,16),mFur,[0,.13,0],[0,0,0],[.06,.145,.034]);
+  add(g,new THREE.SphereGeometry(1,20,16),mPink,[0,.125,.024],[0,0,0],[.034,.105,.014]); }
+
+// Small white rabbit clip on the side of the fringe.
+const clip=new THREE.Group();onHead(clip,.72,.65,HR*1.08);clip.rotation.z=-.25;
+add(clip,new THREE.SphereGeometry(1,20,14),mFur,[0,0,.014],[0,0,0],[.038,.03,.014]);
+for(const s of [-1,1]){add(clip,new THREE.SphereGeometry(1,14,10),mFur,[s*.017,.037,.012],[0,0,-s*.22],[.012,.027,.009]);add(clip,new THREE.SphereGeometry(1,12,8),mPink,[s*.017,.038,.020],[0,0,-s*.22],[.006,.017,.004]);add(clip,new THREE.SphereGeometry(.004,10,8),mInk,[s*.012,.003,.027]);}add(clip,new THREE.SphereGeometry(.004,10,8),mPink,[0,-.009,.028]);
+// Dress collar and tiny buttons.
+for(const s of [-1,1])add(body,new THREE.SphereGeometry(1,16,10),mWhite,[s*.033,.49,.074],[0,0,s*.3],[.039,.019,.012]);
+for(let i=0;i<2;i++)add(body,new THREE.SphereGeometry(.009,12,8),mWhite,[0,.447-i*.035,.093+i*.009]);
+/* ---------- 選項 ---------- */
+const S={act:'走路',ear:'兔夾'};
+const OPTS=[['動作','act',['站著','走路','揮手']],['髮飾','ear',['兔夾','兔耳','無']]];
+const panel=document.getElementById('panel');
+function apply(){ band.visible=S.ear==='兔耳'; clip.visible=S.ear==='兔夾'; panel.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',S[b.dataset.k]===b.dataset.v)); }
+for(const [label,k,vs] of OPTS){ const row=document.createElement('div'); row.className='row'; row.innerHTML=`<b>${label}</b>`;
+  for(const v of vs){ const b=document.createElement('button'); b.textContent=v; b.dataset.k=k; b.dataset.v=v; b.onclick=()=>{ S[k]=v; if(k==='act') resetPos(); apply(); }; row.appendChild(b); }
+  panel.appendChild(row); }
+function resetPos(){ if(S.act!=='走路'){ person.position.set(0,0,0); person.rotation.y=0; } }
+window.setOpt=(k,v)=>{ S[k]=v; if(k==='act') resetPos(); apply(); };
+apply();
+
+/* ---------- 動作 ---------- */
+let ph=0, ang=0, blinkT=2, T=0;
+window.FIXED=null;
+function tick(dt){
+  T+=dt; const walk=S.act==='走路', wave=S.act==='揮手';
+  if(walk){ ph+=dt*8.5; ang+=dt*.4/.72; person.position.set(Math.sin(ang)*.72,0,Math.cos(ang)*.72); person.rotation.y=Math.atan2(Math.cos(ang),-Math.sin(ang)); }
+  const sw=walk?Math.sin(ph):0;
+  legL.rotation.x=sw*.5; legR.rotation.x=-sw*.5;
+  body.position.y=walk?Math.abs(Math.cos(ph))*.02:Math.sin(T*2)*.004;
+  body.rotation.z=walk?Math.sin(ph)*.03:0;
+  dress.rotation.y=walk?Math.sin(ph)*.06:0;
+  armL.rotation.x=-sw*.45; armL.rotation.z=.2;
+  armR.rotation.x=sw*.45; armR.rotation.z=wave?-1.75+Math.sin(T*9)*.3:-.2; if(wave) armR.rotation.x=-1.0;
+  head.rotation.z=wave?Math.sin(T*4.5)*.05:0; head.rotation.y=walk?0:Math.sin(T*.6)*.12;
+  const wob=walk?Math.sin(ph*2)*.05:Math.sin(T*2)*.015; ears[0].rotation.x=wob; ears[1].rotation.x=wob*.8;
+  blinkT-=dt; const closed=blinkT<0; if(blinkT<-.12) blinkT=2.5+Math.random()*2.5;
+  for(const e of eyes){ if(e.userData.hl) e.visible=!closed; else e.scale.y=closed?.004:.034; }
+}
+function resize(){ const w=cv.clientWidth,h=cv.clientHeight; r.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+let last=performance.now();
+function loop(now){ const dt=Math.min(.05,(now-last)/1000); last=now; if(window.FIXED==null) tick(dt); ctl.update(); r.render(scene,cam); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+window.render1=(steps=1,dt=1/30)=>{ for(let i=0;i<steps;i++) tick(dt); r.render(scene,cam); };
+window.camAt=(x,y,z)=>{ cam.position.set(x,y,z); ctl.update(); };
+addEventListener('error',()=>document.getElementById('err').style.display='block');
+</script>
+</body></html>
