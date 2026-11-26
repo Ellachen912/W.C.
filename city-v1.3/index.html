@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<title>Winston City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Huninn&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* 單一主題：晴天的海島 */
+  --sky-top:#8fd3f5;
+  --sky-low:#e3f6fd;
+  --ink:#3b3550;
+  --muted:#6d6785;
+  --card:rgba(255,255,255,.92);
+  --accent:#ff9f43;
+  --font:"Huninn","PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  /* 版面：整個畫面是 3D 小島；左上標題、右上確認事項、下方三種預覽按鈕、建地上方浮著名牌 */
+  color-scheme:light;
+}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:linear-gradient(var(--sky-top),var(--sky-low) 65%);font-family:var(--font);color:var(--ink);-webkit-tap-highlight-color:transparent;touch-action:none;user-select:none;-webkit-user-select:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(16px,env(safe-area-inset-bottom)) + 78px);color:var(--muted);font-size:15px;background:rgba(255,255,255,.75);padding:4px 12px;border-radius:999px;white-space:nowrap}
+.tag:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+#tags{position:fixed;inset:0;pointer-events:none}
+.tag{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;background:rgba(255,255,255,.94);border:0;border-radius:14px;padding:5px 12px 6px;font:inherit;font-size:16px;color:var(--ink);box-shadow:0 4px 10px rgba(59,53,80,.18);white-space:nowrap;cursor:pointer;display:flex;flex-direction:column;align-items:center;line-height:1.25}
+.tag small{font-size:13px;color:var(--muted)}
+.tag.wip small{color:#c77700}
+.tag.empty small{color:#3f9a4a}
+.tag.later{font-size:14px;padding:3px 9px 4px;background:rgba(255,255,255,.86)}
+.tag.later small{font-size:11px;color:#9a8f7a}
+.tag::after{content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:6px solid transparent;border-bottom:0;border-top-color:rgba(255,255,255,.94)}
+.err{position:fixed;inset:auto 16px 50% 16px;text-align:center;font-size:18px;display:none}
+
+/* ===== 小步 2：畫面配置 ===== */
+.top{position:fixed;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));right:max(14px,env(safe-area-inset-right));display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none}
+.top>*{pointer-events:auto}
+.city{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:22px;padding:8px 18px 8px 10px;box-shadow:0 6px 18px rgba(59,53,80,.12)}
+.city{cursor:pointer}
+.city .flag{width:55px;height:34px;border-radius:6px;box-shadow:0 2px 6px rgba(59,53,80,.25);flex:none}
+.city b{font-size:22px;display:block;line-height:1.15}
+.city span{font-size:16px;color:var(--muted)}
+.stars{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:999px;padding:8px 22px 8px 14px;box-shadow:0 6px 18px rgba(59,53,80,.12);font-size:30px;font-weight:700;min-height:52px}
+.stars{border:0;font-family:inherit;color:var(--ink);cursor:pointer}
+.stars .jx{width:36px;height:36px}
+.stars i{font-style:normal;color:var(--muted);font-size:30px;margin-left:2px}
+.dock{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:10px;max-width:calc(100vw - 130px)}   /* 家長：兩顆靠左，右下角留給 Netlify 標籤 */
+.big{font:inherit;font-size:18px;min-height:48px;min-width:0;padding:0 18px;border:0;border-radius:20px;background:var(--card);color:var(--ink);box-shadow:0 6px 18px rgba(59,53,80,.18);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer}
+.big.main{background:var(--accent);color:#fff}
+.big svg{width:24px;height:24px}
+.big:focus-visible,.sheet button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.sheet{position:fixed;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 66px);transform:translateX(-50%);width:min(380px,calc(100vw - 24px));max-height:min(46vh,calc(100vh - 150px));overflow:auto;background:rgba(255,255,255,.97);border-radius:20px;box-shadow:0 8px 26px rgba(59,53,80,.28);padding:12px 14px 14px;display:none;touch-action:pan-y;box-sizing:border-box}
+.sheet.on{display:block}
+.sheet.on~.hint{display:none}
+.sheet h2{margin:0;font-size:20px;padding-right:44px}
+.sheet .sub{color:var(--muted);font-size:14px;margin:1px 0 6px}
+.sheet p{font-size:15px;line-height:1.45;margin:6px 0}
+.sheet .fact{background:#eef8fd;border-radius:12px;padding:8px 12px;font-size:14px;line-height:1.45}
+.sheet .fact b{color:#2b86b8}
+.sheet .x{position:absolute;top:8px;right:10px;width:38px;height:38px;border:0;border-radius:50%;background:#f1eef7;font:inherit;font-size:18px;color:var(--ink);cursor:pointer}
+.sheet .go{font:inherit;font-size:18px;min-height:46px;width:100%;margin-top:8px;border:0;border-radius:16px;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.sheet .go:disabled{background:#d9d4e3;color:#7d7791;cursor:default}
+.sheet .why{font-size:14px;color:#b25a00;text-align:center;margin-top:4px;min-height:18px}
+.lvs{display:flex;gap:5px;margin:6px 0}
+.lvs i{flex:1;height:8px;border-radius:4px;background:#e3dfee}
+.lvs i.on{background:var(--accent)}
+.row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:14px;background:#f7f5fb;margin:6px 0;font-size:16px;min-height:44px}
+.row.dim{opacity:.55}
+.row.pick{outline:3px solid var(--accent)}
+.row button:disabled{background:#d9d4e3;color:#7d7791}
+.sheet p.now{background:#fff6e8;border-radius:12px;padding:6px 12px}
+.pen{font:inherit;font-size:16px;width:34px;height:34px;border:0;border-radius:50%;background:#f1eef7;color:var(--ink);cursor:pointer;vertical-align:middle;margin-left:4px}
+.sw{min-width:64px}.sw:not(.on){background:#d9d4e3!important;color:var(--ink)!important}
+/* 注音：國字右邊直排注音，聲調在右邊、輕聲點在上面（和 tools/zhuyin.py 的圖卡一樣） */
+.zy .c{display:inline-flex;align-items:center;vertical-align:middle;margin:0 .5px}
+.zy .h{line-height:1}
+.zy .z{display:flex;flex-direction:column;justify-content:center;font-size:.46em;line-height:1.02;margin-left:1px;min-height:2.2em;padding-right:1.45em;font-weight:400}
+.zy .z i{font-style:normal;display:block;position:relative}
+.zy .z .t{font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;position:absolute;left:100%;top:-.05em;margin-left:-.08em;font-size:2.6em;font-weight:300;line-height:1;transform:scaleY(1.3);transform-origin:left center}   /* 家長 11-13：聲調放大、放在最後一個注音的右上方（課本寫法） */
+.zy .z .l{display:block;width:.3em;height:.3em;border-radius:50%;background:currentColor;margin:0 auto .1em;font-size:1em;line-height:0;color:inherit;overflow:hidden;text-indent:-9em}   /* 輕聲點：放大、貼近注音上方 */
+.sheet p .zy,.fact .zy,.lvd .zy{line-height:2.3}
+.sheet p:has(.zy),.fact:has(.zy){font-size:16px}
+.row b{flex:1;font-weight:600;line-height:1.3}
+.row small{font-size:13px;color:var(--muted);font-weight:400}
+.row button{font:inherit;font-size:16px;min-height:40px;padding:0 16px;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer}
+.row.go2{width:100%;border:0;font:inherit;font-size:16px;color:var(--ink);text-align:left;cursor:pointer;box-sizing:border-box}
+.row.go2>i{font-style:normal;font-size:26px;color:var(--muted);padding-right:4px}   /* 只管右邊的箭頭；注音的 <i> 不能被放大（家長 11-13 注音變怪） */
+.row .th{width:84px;height:84px;object-fit:contain;flex:none;margin:-4px 0}
+.row.dim .th{filter:grayscale(.7);opacity:.6}
+.sheet input{user-select:text;-webkit-user-select:text;font:inherit;font-size:16px;min-height:42px;width:100%;box-sizing:border-box;border:2px solid #d9d4e3;border-radius:12px;padding:0 12px;margin:4px 0;color:var(--ink)}
+.back{font:inherit;font-size:14px;min-height:34px;border:0;border-radius:12px;background:#f1eef7;color:var(--ink);padding:0 12px;margin:0 0 4px;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.cat{font:inherit;font-size:16px;min-height:50px;border:0;border-radius:14px;background:#fff2e2;color:var(--ink);padding:6px 10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;justify-content:center;line-height:1.25}
+.cat small{font-size:12px;color:var(--muted)}
+.cat.dim{background:#f3f1f7;color:#9d98ad;cursor:default}
+.pan{position:fixed;top:42%;transform:translateY(-50%);width:38px;height:38px;border:0;border-radius:50%;background:rgba(255,255,255,.38);box-shadow:0 3px 12px rgba(59,53,80,.15);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;padding:0}   /* 家長 11-14：左右半透明箭頭，點一下城市往那邊滑一點 */
+.pan svg{width:22px;height:22px;fill:none;stroke:rgba(59,53,80,.7);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+body:has(.sheet.on) .pan,body:has(.lvup) .pan{display:none}
+#rotRing{position:fixed;z-index:30;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;border:4px solid rgba(255,255,255,.95);background:rgba(255,160,60,.35);color:#fff;font:800 40px/76px system-ui;text-align:center;pointer-events:none;opacity:0;transform:scale(.5);transition:opacity .15s,transform .15s;text-shadow:0 1px 3px rgba(0,0,0,.4)}#rotRing.on{opacity:1;transform:scale(1)}
+.pan{display:none!important}   /* 家長 11-25 22:58：四個半透明箭頭不要了，改成點畫面移動 */
+.pan:active{background:rgba(255,255,255,.65)}#panL{left:max(8px,env(safe-area-inset-left))}#panR{right:max(8px,env(safe-area-inset-right))}#panU,#panD{left:50%;transform:translateX(-50%)}#panU{top:calc(env(safe-area-inset-top) + 84px)}#panD{top:auto;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 66px)}
+@media (min-width:700px) and (min-height:600px){.pan{width:50px;height:50px}.pan svg{width:28px;height:28px}#panU{top:calc(env(safe-area-inset-top) + 96px)}#panD{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 108px)}}   /* 手機小、iPad 大一點 */
+.cat{position:relative}.cat b{font-weight:600}
+.cat.can{background:#e3f6dc;box-shadow:inset 0 0 0 2.5px #5bb04f;padding-right:46px}   /* 家長 11-14：可以蓋的類別要凸顯：綠底綠框＋敲敲打打的小錘子 */
+.ham{display:inline-block;width:34px;height:34px;flex:none}.ham svg{width:100%;height:100%;overflow:visible}
+.ham .hm{transform-origin:16px 26px;animation:hamr 1s ease-in-out infinite}.ham .sp{opacity:0;animation:hams 1s ease-out infinite}
+.row.can{background:#e3f6dc;box-shadow:inset 0 0 0 2.5px #5bb04f}.go .ham{width:30px;height:30px}.go .ham rect:nth-child(2){fill:#fff3c4}
+@media (prefers-reduced-motion:reduce){.ham .hm,.ham .sp{animation:none}}
+.cat .ham{position:absolute;top:4px;right:6px;width:36px;height:36px}.cat .ham svg{width:100%;height:100%;overflow:visible}
+.cat .ham .hm{transform-origin:16px 26px;animation:hamr 1s ease-in-out infinite}.cat .ham .sp{opacity:0;animation:hams 1s ease-out infinite}
+@keyframes hamr{0%,100%{transform:rotate(-38deg)}45%{transform:rotate(-38deg)}62%{transform:rotate(18deg)}72%{transform:rotate(8deg)}}
+@keyframes hams{0%,58%{opacity:0;transform:scale(.4)}66%{opacity:1;transform:scale(1)}90%,100%{opacity:0;transform:scale(1.4)}}
+@media (prefers-reduced-motion:reduce){.cat .ham .hm,.cat .ham .sp{animation:none}}
+.city span .zy .z{font-size:.5em}.big .zy .z{font-size:.46em}.big{white-space:nowrap}.big svg{flex:none}.big .zy{white-space:nowrap}
+
+.bign{font-size:30px;font-weight:700;text-align:center;margin:0 0 2px}
+.pwd{display:flex;justify-content:center;gap:12px;margin:8px 0}
+.pwd i{width:16px;height:16px;border-radius:50%;background:#e3dfee}
+.pwd i.on{background:var(--accent)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:250px;margin:6px auto}
+.pad button{font:inherit;font-size:20px;min-height:46px;border:0;border-radius:14px;background:#f1eef7;color:var(--ink);cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.chips button{font:inherit;font-size:15px;min-height:38px;padding:0 13px;border:0;border-radius:19px;background:#eef8fd;color:var(--ink);cursor:pointer}
+.chips button.on{background:var(--accent);color:#fff}
+.amt{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0}
+.amt button{font:inherit;font-size:24px;width:46px;height:46px;border:0;border-radius:50%;background:#f1eef7;color:var(--ink);cursor:pointer}
+.amt b{font-size:30px;min-width:80px;text-align:center}
+.sheet .go.alt{background:#f1eef7;color:var(--ink)}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9}
+.confetti i{position:absolute;top:-16px;width:10px;height:14px;border-radius:2px;animation:fall linear forwards;will-change:transform}
+@keyframes fall{from{transform:translate3d(0,0,0) rotate(0)}to{transform:translate3d(40px,110vh,0) rotate(540deg)}}   /* 11-20：彩帶改用 transform 往下掉（原本改 top，手機每一格都要重新排版，慶祝畫面會卡） */
+.jx{width:1em;height:1em;vertical-align:-.14em}
+.sheet textarea{user-select:text;-webkit-user-select:text;width:100%;height:84px;box-sizing:border-box;font:inherit;font-size:13px;border:2px solid #d9d4e3;border-radius:12px;padding:8px;margin:6px 0;color:var(--ink);resize:none}
+.lvup{position:fixed;inset:0;z-index:10;background:rgba(40,30,70,.5);display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;animation:fadein .25s}
+.lvbox{background:#fff;border-radius:26px;padding:18px 16px 16px;width:min(380px,100%);box-sizing:border-box;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);animation:pop .55s cubic-bezier(.2,1.5,.4,1)}
+.lvt{font-size:28px;font-weight:700;color:#e8741c;line-height:1.2}
+.lvc{font-size:18px;color:#2b86b8;margin-top:4px}
+.ba{display:flex;align-items:center;justify-content:center;gap:6px;margin:12px 0 8px}
+.ba figure{margin:0;flex:1;min-width:0}.ba img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;background:#bfe6f6;display:block}
+.ba figcaption{font-size:14px;color:var(--muted);margin-top:4px}.ba>span{font-size:26px;color:var(--accent)}
+.lvd{font-size:15px;line-height:1.45;margin:6px 4px 4px}
+.lvbox .go{font:inherit;font-size:20px;min-height:50px;width:100%;margin-top:8px;border:0;border-radius:18px;background:var(--accent);color:#fff;cursor:pointer}
+.jfall{position:absolute;top:-30px;width:26px;height:26px;animation:fall linear forwards;will-change:transform}
+.spark{position:fixed;width:22px;height:22px;z-index:6;pointer-events:none}
+@keyframes fadein{from{opacity:0}}@keyframes pop{from{transform:scale(.5);opacity:0}}
+#tp{position:fixed;right:max(10px,env(safe-area-inset-right));top:calc(max(14px,env(safe-area-inset-top)) + 70px);display:flex;flex-direction:column;gap:4px;z-index:5;background:rgba(255,255,255,.85);padding:6px;border-radius:14px;box-shadow:0 4px 12px rgba(59,53,80,.18)}
+#tp small{font-size:11px;color:var(--muted);text-align:center}
+#tpb{display:none}#tp.open #tpb{display:flex;flex-direction:column;gap:4px}.sheet.on~#tp{display:none}
+#tp .tr{display:flex;flex-direction:column;gap:2px}#tp .tr>div{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+#tp button{font:inherit;font-size:12px;min-height:30px;min-width:32px;padding:0 6px;border:0;border-radius:10px;background:#f1eef7;color:var(--ink);cursor:pointer}
+.toast{position:fixed;left:50%;top:92px;transform:translateX(-50%);background:#3b3550;color:#fff;border-radius:16px;padding:10px 18px;font-size:17px;display:none;max-width:90vw;text-align:center}
+#tmB{position:fixed;right:max(12px,env(safe-area-inset-right));top:calc(max(14px,env(safe-area-inset-top)) + 64px);font:inherit;font-size:14px;min-height:34px;padding:0 12px;border:0;border-radius:12px;background:rgba(255,255,255,.88);color:var(--ink);box-shadow:0 4px 12px rgba(59,53,80,.18);cursor:pointer;z-index:6}
+#tmB.on{background:#3b3550;color:#fff}
+#tmW{position:fixed;right:max(12px,env(safe-area-inset-right));top:calc(max(14px,env(safe-area-inset-top)) + 104px);display:none;flex-wrap:wrap;gap:4px;width:150px;justify-content:flex-end;z-index:6}
+#tmW.on{display:flex}#tmW button{font:inherit;font-size:13px;min-height:32px;min-width:44px;border:0;border-radius:10px;background:rgba(255,255,255,.9);color:var(--ink);box-shadow:0 2px 6px rgba(59,53,80,.18)}
+.mtag{position:absolute;transform:translate(-50%,-100%);background:rgba(255,255,255,.93);color:#3b3550;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;box-shadow:0 2px 7px rgba(59,53,80,.2);pointer-events:none;white-space:nowrap}   /* 家長 11-20 00:05：市長標示不要紅底 */
+.talk{position:absolute;transform:translate(-50%,-100%);background:#fff;border-radius:18px;padding:12px 18px;font-size:21px;color:var(--ink);box-shadow:0 6px 16px rgba(59,53,80,.28);max-width:min(78vw,380px);white-space:normal;pointer-events:none;line-height:2.05}   /* 家長 11-20 23:12：點小人說話的窗口放大（字 15→21） */
+.talk b{display:block;font-size:15px;color:#7a6fa8;line-height:1.4;margin-bottom:2px}
+.talk::after{content:'';position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-bottom:0;border-top-color:#fff}
+#tmc{position:fixed;display:none;align-items:center;gap:6px;background:rgba(255,255,255,.96);border-radius:16px;padding:5px;box-shadow:0 4px 12px rgba(59,53,80,.25);z-index:6;transform:translate(0,-100%)}
+#tmc.on{display:flex}
+#tmc button{font:inherit;font-size:22px;width:42px;height:42px;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer}
+#tmc button:disabled{background:#d9d4e3}
+#tmc b{font-size:16px;min-width:40px;text-align:center}
+#tmc .x2{background:#f1eef7;color:var(--ink);font-size:15px}
+@media (max-width:760px){ .hint{display:none} .pad{gap:6px;margin:4px auto} .pad button{min-height:38px;font-size:18px} .pwd{margin:4px 0} .sheet .why:empty{display:none} .chips button{min-height:34px;font-size:14px} .amt button{width:40px;height:40px;font-size:20px} .big{min-width:0;padding:0 14px;font-size:17px;min-height:46px} .sheet{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 62px);max-height:44vh} .dock{gap:8px} .stars{font-size:24px} .city b{font-size:18px} }
+.sheet .go.soft,.row button.soft{background:#d9d4e3;color:#5f5a72}   /* 11-19：條件還沒做到的按鈕：灰色但可以點，點了跳提醒 */
+.ndbox{text-align:left}.ndt{font-size:24px;font-weight:700;color:#c25a12;text-align:center;line-height:1.5}
+.ndbig{display:block;width:120px;height:120px;object-fit:contain;margin:2px auto 0;filter:grayscale(.35)}
+.ndsub{font-size:16px;color:var(--muted);margin:4px 0 2px}
+.nd{display:flex;align-items:center;gap:8px;background:#fff4e6;border-radius:14px;padding:6px 8px;margin:6px 0;min-height:52px}
+.nd.ok{background:#eaf6e4}.nd b{flex:1;font-size:17px;line-height:1.35}.nd small{font-size:14px;font-weight:400}.nd small.ok{color:#3f8f3a}.nd small.no{color:#b25a00}
+.ndth{width:56px;height:56px;object-fit:contain;flex:none}.ndth.jxbig{width:40px;height:40px;margin:0 8px}
+.ndgo{font:inherit;font-size:15px;min-height:44px;padding:0 9px;white-space:nowrap;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;flex:none}
+.ndor{font-size:14px;color:var(--muted);margin:8px 2px 0}
+.cat.zc{padding-left:26px}.cat .zdot{position:absolute;left:6px;top:11px;width:17px;height:17px}.cat.zc.can{padding-right:38px}.cat.zc .ham{width:30px;height:30px;right:4px}.cat.dim .zdot{opacity:.5}
+.nd .nw{white-space:nowrap}
+.tree{position:fixed;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(max(14px,env(safe-area-inset-bottom)) + 66px);height:min(62vh,640px);background:rgba(255,255,255,.97);border-radius:24px;box-shadow:0 8px 26px rgba(59,53,80,.28);z-index:7;display:flex;flex-direction:column;overflow:hidden}
+.thd{display:flex;align-items:center;gap:14px;padding:12px 64px 4px 20px;position:relative}.thd h2{margin:0;font-size:24px}.thd .sub{color:var(--muted);font-size:16px;flex:1}
+.thd .x{position:absolute;top:10px;right:12px;width:44px;height:44px;border:0;border-radius:50%;background:#f1eef7;font:inherit;font-size:20px;cursor:pointer}
+.thd .tz{font:inherit;font-size:15px;min-height:40px;border:0;border-radius:12px;background:#f1eef7;color:var(--ink);padding:0 12px;cursor:pointer}
+.tsc{flex:1;overflow-x:auto;overflow-y:auto;display:flex;gap:16px;padding:6px 20px 16px;align-items:flex-start;touch-action:pan-x pan-y}
+.tcol{display:flex;flex-direction:column;gap:10px;width:150px;flex:none}.tst{text-align:center;font-size:15px;color:var(--muted)}
+.tc{position:relative;border:3px solid transparent;border-radius:18px;padding:6px 6px 8px;font:inherit;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;min-height:150px}
+.tc b{font-size:18px;line-height:1.3;text-align:center}.tc small{font-size:14px;color:var(--muted)}.tc .jx{width:16px;height:16px}
+.tc.done{background:#eaf6e4}.tc.can{background:#fff2dc;border-color:#f0a43a}.tc.lock{background:#f3f1f7}.tc.lock .tth{filter:grayscale(.8);opacity:.55}.tc.lock b{color:#8d879e}
+.tc.need{border-color:#d85a30;box-shadow:0 0 0 3px rgba(216,90,48,.25)}
+.tth{width:110px;height:96px;object-fit:contain}.tc .ham{position:absolute;top:4px;right:4px;width:32px;height:32px}.tc .lk{position:absolute;top:6px;right:8px;width:24px;height:24px}.tc .lk svg{width:100%;height:100%}
+.tgate{flex:none;width:86px;align-self:stretch;display:flex;align-items:center;justify-content:center;text-align:center;background:#f6efe2;border-radius:16px;font-size:16px;color:#9a6a2a;padding:8px 6px;line-height:1.6}
+body:has(.tree) .pan{display:none}
+/* ===== 第三階段（家長 11-20 23:12、23:18）：建造介面的字再放大；建造樹每一步太長就分成兩欄 ===== */
+.sheet h2{font-size:23px}.sheet .sub{font-size:16px}
+.row{font-size:18px}.row.go2{font-size:18px}.row small{font-size:15px}
+.cat{font-size:18px;min-height:56px}.cat small{font-size:14px}
+.thd h2{font-size:28px}.thd .sub{font-size:18px}.thd .tz{font-size:17px}
+.tst{font-size:18px;font-weight:600}.tc b{font-size:21px}.tc small{font-size:16px}.tcol{width:164px}
+.tstep{display:flex;flex-direction:column;gap:10px;flex:none}.tcols{display:flex;gap:10px;align-items:flex-start}
+.tgate{font-size:18px}
+.upi .ua{transform-origin:16px 16px;animation:upb 1.1s ease-in-out infinite}@keyframes upb{0%,100%{transform:translateY(1.5px)}50%{transform:translateY(-2.5px)}}@media (prefers-reduced-motion:reduce){.upi .ua{animation:none}}
+.go .upi{width:30px;height:30px}
+/* 發木星的密碼鍵盤（家長 11-20 12:43）：整個放得下，不用往下滑 */
+.sheet.pw{max-height:calc(100vh - 120px)}.sheet.tall{max-height:calc(100vh - 200px)}.sheet.pw h2{font-size:20px}.sheet.pw .sub{font-size:14px;margin:0 0 2px}
+.sheet.pw .pwd{margin:4px 0}.sheet.pw .pad{gap:6px;max-width:230px;margin:4px auto}.sheet.pw .pad button{min-height:40px;font-size:19px}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<canvas id="c" aria-label="Winston City 城市地圖，可以用手指轉動和縮放"></canvas>
+<div id="tags"></div>
+<button class="pan" id="panL" type="button" aria-label="往左看"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><button class="pan" id="panR" type="button" aria-label="往右看"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><button class="pan" id="panU" type="button" aria-label="往上看"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg></button><button class="pan" id="panD" type="button" aria-label="往下看"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
+<div class="top">
+  <div class="city"><canvas class="flag" id="flagc" width="110" height="68" aria-hidden="true"></canvas><div><b id="cityN">Winston City</b><span id="stage">啟航灣</span></div></div>
+  <button class="stars" id="bStars" type="button" aria-label="木星，點一下看紀錄或發木星"><img class="jx" id="jTop" alt=""><span id="starN">0</span><i aria-hidden="true">›</i></button>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<button id="tmB" type="button" hidden style="display:none">測試模式</button><!-- 家長 11-13 13:37：正式版，測試模式按鈕藏起來（程式保留） -->
+<div id="tmW"><button data-n="0" type="button">白天</button><button data-n=".5" type="button">傍晚</button><button data-n="1" type="button">晚上</button><button data-w="sun" type="button">晴</button><button data-w="rainbow" type="button">彩虹</button><button data-w="rain" type="button">雨</button></div>
+<div id="tmc" aria-label="這棟升降級"><button id="tmD" type="button" aria-label="降一級">−</button><b id="tmL"></b><button id="tmU" type="button" aria-label="升一級">＋</button><button id="tmX" type="button" aria-label="拆掉" class="x2">拆</button></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="false"></div>
+<nav class="dock" aria-label="主要功能">
+  <button class="big main" id="bBuild" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/></svg>建造</button>
+  <button class="big" id="bHome" type="button">看全城</button>
+</nav>
+<div class="hint">一指拖曳旋轉・兩指縮放・按住不動再拖可平移・點建築看詳細・點空地蓋房子</div><div id="rotRing">✥</div>
+<div class="err" id="err">這台裝置打不開 3D 畫面，請用 Safari 或 Chrome 再試一次。</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as L from './lib.js';
+import { BUILDINGS } from './buildings.js';
+import { S, ZONES, GRID, SPLIT, PLOTS, TILE, TYPES, TEST_LAYOUT, EXTRA_TILES, canPlace, occupied, shownName } from './data.js';
+import { initUI } from './ui.js';
+import { rotors, POWER_LV } from './s1_power_all.js';
+import { WATER_LV, blinkers } from './s1_water.js';
+import { SEWAGE_LV, sewBlink } from './s1_sewage.js';
+import { TRASH_LV, trashBlink } from './s1_trash.js';
+import { HOME_LV } from './s1_home.js';
+import { GARDEN_LV, RANCH_LV } from './s1_farm.js';
+import { binLids } from './s1_trash.js';
+import { initLife } from './life.js';
+import { bakeLot, countMeshes } from './perf.js';
+import { pendingLen, pendingFrom } from './s1_kit.js';   // 11-25：等模型載好再合併
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';   // 家長 11-25：把不會動的小零件合併，畫得更快
+import { ASTRO_LV, ASTRO_TOP, astroTap } from './s2_astro.js';
+import { PIER_LV, PIER_TOP } from './s2_pier.js';
+import { STATION_LV, STATION_TOP, STN, buildRail, railDist, buildTrench } from './s2_station.js';
+import { FIRE_LV, FIRE_TOP } from './s2_fire.js';
+import { ICE_LV, BURGER_LV, JP_LV, FOOD2_TOP } from './s2_food.js';
+import { JAPANESE_LV, JAPANESE_TOP } from './s2_japanese.js';
+import { ICECREAM_LV, ICECREAM_TOP } from './s2_icecream.js';
+import { BAKERY_LV, BAKERY_TOP } from './s2_bakery.js';
+import { NIGHT_LV, NIGHT_TOP } from './s2_nightmarket.js';
+import { FASTFOOD_LV, FASTFOOD_TOP } from './s2_fastfood.js';
+import { TEA_LV, TEA_TOP } from './s2_farm2.js';
+import { ORCHARD_LV, ORCHARD_TOP } from './s2_orchard.js';
+import { BANK_LV, BANK_TOP } from './s2_civic.js';
+import { ART_LV, ART_TOP } from './s2_art.js';   // 11-19 美術館改成現代風格
+import { POLICE_LV, POLICE_TOP, TEMPLE_LV, TEMPLE_TOP, STATIONERY_LV, STATIONERY_TOP } from './s2_other.js';
+import { LIBRARY_LV, CLINIC_LV, HOSPITAL_LV, BREAKFAST_LV, MARKET_LV, CONV_LV, PARK_LV } from './s1_more.js';
+
+/* 11-25：車子等模型的貼圖檔放在 textures/（小寫），模型裡寫的是 Textures/（大寫）。電腦上沒差，網站伺服器分大小寫會找不到 → 統一改成小寫 */
+THREE.DefaultLoadingManager.setURLModifier(u=>u.replace('/Textures/','/textures/'));
+const canvas=document.getElementById('c');
+let renderer;
+try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true}); }
+catch(e){ document.getElementById('err').style.display='block'; throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));   /* 家長 11-25 速度優化：iPad 原本用 2 倍畫素畫，改 1.5 倍（要畫的點少了快一半） */
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate=false;   /* 11-25：影子不用每一格都重算：城市改變時馬上算，平常每 2 格算 1 次（走路的人、車子影子照樣跟著動） */
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0xd6f0fb,150,320);       // 遠方的海慢慢融進天空
+const camera=new THREE.PerspectiveCamera(32,1,1,420);
+const HOME={target:new THREE.Vector3(0,0,2), pos:new THREE.Vector3(36,86,110)};
+camera.position.copy(HOME.pos);
+const controls=new OrbitControls(camera,canvas);
+controls.target.copy(HOME.target);
+Object.assign(controls,{enableDamping:true,screenSpacePanning:false,minDistance:1.2,maxDistance:150,minPolarAngle:.35,maxPolarAngle:1.25});
+/* 家長 11-26 14:18：一指拖曳＝旋轉；兩指＝縮放（也能移動）；按住不動半秒再拖＝平移 */
+controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN}; controls.mouseButtons={LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.ROTATE};
+
+/* 光：和建築樣張一樣——天空半球光＋左上方暖陽 */
+const hemi=new THREE.HemisphereLight(0xdff4ff,0x8fb070,1.5); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff1d6,2.6);
+sun.position.set(-16,34,22); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);   /* 11-25：影子貼圖 4096→2048，手機省很多力 */
+Object.assign(sun.shadow.camera,{left:-56,right:56,top:56,bottom:-56,near:1,far:160});
+sun.shadow.bias=-.0004; sun.shadow.normalBias=.03;
+scene.add(sun);
+
+
+/* ---------- 六角形街區：像蜂巢一樣邊對邊黏在一起，六角形的邊就是道路 ---------- */
+const R=4.2, H=Math.sqrt(3)*R, STEP=1.5*R;
+/* 家長 11-13：道路拓寬成雙向＋兩邊人行道。六角格大小不變，格子之間空出 GAP 當馬路（整張地圖跟著變大）。
+   RR＝馬路中線那一圈的半徑（三條路交會的路口就在 RR 的頂點）；K＝格子中心距離放大的倍數 */
+const GAP=1.6, K=(H+GAP)/H, RR=R+GAP/Math.sqrt(3), RA=R+2*GAP/Math.sqrt(3);
+function hexShape(r){ const s=new THREE.Shape(); for(let i=0;i<6;i++){ const a=i*Math.PI/3, x=r*Math.cos(a), y=r*Math.sin(a); if(i) s.lineTo(x,y); else s.moveTo(x,y); } s.closePath(); return s; }
+function slab(shape,depth,y,material,bevel=0,x=0,z=0){
+  const g=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:bevel>0,bevelThickness:bevel,bevelSize:bevel,bevelSegments:2,curveSegments:12});
+  g.rotateX(-Math.PI/2);
+  const m=new THREE.Mesh(g,material); m.position.set(x,y,z); m.receiveShadow=true; return m;
+}
+function rrect(x0,z0,x1,z1,r){
+  const s=new THREE.Shape(), Y0=-z1, Y1=-z0;
+  s.moveTo(x0+r,Y0); s.lineTo(x1-r,Y0); s.quadraticCurveTo(x1,Y0,x1,Y0+r); s.lineTo(x1,Y1-r); s.quadraticCurveTo(x1,Y1,x1-r,Y1);
+  s.lineTo(x0+r,Y1); s.quadraticCurveTo(x0,Y1,x0,Y1-r); s.lineTo(x0,Y0+r); s.quadraticCurveTo(x0,Y0,x0+r,Y0); return s;
+}
+/* ZONES（各區名稱、地面顏色）和 GRID（10×5 格的分區）放在 data.js，土地編號也在那裡算 */
+const hexes=[];
+GRID.forEach((row,r)=>row.forEach((key,c)=>hexes.push({r,c,key,x:(c-4.5)*STEP*K,z:((r-2)*H+(c%2===0?H/2:0)-H/4)*K})));
+const hexAt=(r,c)=>hexes.find(h=>h.r===r&&h.c===c);
+for(const h of hexes) h.id=TILE[Object.keys(TILE).find(k=>TILE[k].r===h.r&&TILE[k].c===h.c)].id;
+/* 家長 11-20 22:56：發電、污水、垃圾往南移一格 → 041、042、043 正南邊多三格（052、053、054），跟一般格子一樣排。
+   家長 11-25 16:36：只加這三格，鐵路和海岸都不動 → 鐵路經過這三格底下的那一段改成地下化（隧道，s2_station.js），三格底下補一塊陸地 */
+for(const e of EXTRA_TILES) if(e.south){ const c=e.c, r=e.r; hexes.push({r,c,key:e.zone,id:e.id,south:true,x:(c-4.5)*STEP*K,z:((r-2)*H+(c%2===0?H/2:0)-H/4)*K}); }
+/* 六角街區外面是一整片平順圓潤的草地，以後要加新區就蓋在這片空地上（現在不畫出六角形） */
+const extra=[]; const hexPos=(r,c)=>({x:(c-4.5)*STEP*K,z:((r-2)*H+(c%2===0?H/2:0)-H/4)*K});
+const G50=hexes.filter(h=>!h.south), minBack=Math.min(...G50.map(h=>h.z-H/2-GAP)), maxFront=Math.max(...G50.map(h=>h.z+H/2+GAP));   // 鐵路、海岸只照原本 50 格算
+const xL=-4.5*STEP*K-RA, xR=4.5*STEP*K+RA;
+/* 外圍鐵路：先算出來，因為碼頭那一格要放在鐵軌外面（家長 11-19 23:44 的紅線圖）。
+   minBack／maxFront 只用原本 50 格算，碼頭那一格不算進去，鐵路才不會跟著往外跑。 */
+const RAIL={x0:xL-7.2,x1:xR+5.6,z0:minBack-2.6,z1:maxFront+3.4,r:12}; STN.rail=RAIL;
+/* 鐵路地下化的範圍：南邊鐵軌經過新三格（連同外圍馬路）底下的那一段 */
+{ const sx=hexes.filter(h=>h.south).map(h=>h.x); STN.tunnels=sx.length?[[Math.min(...sx)-RA+.3,Math.max(...sx)+RA+.4]]:[];   // 東邊隧道口要在垃圾那格外圍馬路的外面
+  /* 家長 11-25 17:14：進隧道前路面要往下陷（引道），出來也一樣。西邊引道接到河上鐵橋前就停（不能卡到河），東邊比較長 */
+  STN.trench={w:4.4,e:7.2,d:1.25};   /* 11-26：坡度緩一點（車廂上下坡才不會折太多）：西邊引道加長到 4.4、深度 1.25（車頂還是在地面下） */ }
+/* 引道那幾段地面挖空（草地和土層開一個洞，才看得到往下陷的鐵軌） */
+function trenchHoles(){ const out=[]; for(const [a,b] of STN.tunnels||[]) for(const [x0,x1] of [[a-STN.trench.w-.1,a+.4],[b-.4,b+STN.trench.e+.1]]){ const z0=RAIL.z1-1.45, z1=RAIL.z1+1.45, h=new THREE.Path();   /* 11-25：洞比引道大 .1（土層邊緣有 .1 的圓角會往內縮），土層的切面才會藏在水泥牆裡面，不會跟牆疊在一起閃 */
+    h.moveTo(x0,-z0); h.lineTo(x0,-z1); h.lineTo(x1,-z1); h.lineTo(x1,-z0); h.closePath(); out.push(h); } return out; }
+/* 只在洞整個落在這塊陸地裡面時才挖（洞跨出陸地邊緣，地面會畫壞） */
+function inPoly(pts,x,y){ let c=false; for(let i=0,j=pts.length-1;i<pts.length;j=i++){ const a=pts[i], b=pts[j]; if(((a.y>y)!==(b.y>y))&&(x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)) c=!c; } return c; }
+const holed=sh=>{ const pts=sh.getPoints(); for(const h of trenchHoles()){ const hp=h.getPoints(); if(hp.every(p=>inPoly(pts,p.x,p.y))) sh.holes.push(h); } return sh; };
+/* 碼頭專用的格子：接在火車站旁邊那一格（HEX-049）下面、鐵軌外面靠海；bridgeTo 讓人行道穿過鐵軌接過去 */
+for(const e of EXTRA_TILES){ if(e.south) continue; const u=hexes.find(h=>h.id===e.under); if(!u) continue;
+  hexes.push({r:e.r,c:e.c,key:e.zone,id:e.id,x:u.x,z:RAIL.z1+4.2,bridgeTo:e.under,extra:true}); }
+const allHex=[...hexes,...extra];
+
+const SAND='#efe3c4', ROAD='#ece4d4', CURB='#d6ccb8', ASPH='#e6dfd0', WALK='#efe9de';   /* 家長 11-13 13:11：路改成最不明顯的顏色（淡米色，接近原本的路） */
+const land=new THREE.Group(); scene.add(land);
+const soilM=L.mat('#c4925f'), sandM=L.mat(SAND,{roughness:.95}), roadM=L.mat(ASPH,{roughness:.9}), walkM=L.mat(WALK,{roughness:.95});
+const quayM=L.mat('#cfc8ba',{roughness:.95}), quayDM=L.mat('#aba497',{roughness:.95});
+/* 六角形只留後面（z<=zMax）那一塊；Shape 的 y＝-z */
+function hexClip(r,zMax){ const p=[]; for(let i=0;i<6;i++){ const a=i*Math.PI/3; p.push([r*Math.cos(a),-r*Math.sin(a)]); }
+  const out=[]; for(let i=0;i<6;i++){ const A=p[i], B=p[(i+1)%6];
+    if(A[1]<=zMax) out.push(A);
+    if((A[1]-zMax)*(B[1]-zMax)<0){ const t=(zMax-A[1])/(B[1]-A[1]); out.push([A[0]+(B[0]-A[0])*t,zMax]); } }
+  const sh=new THREE.Shape(); out.forEach(([x,z],i)=>i?sh.lineTo(x,-z):sh.moveTo(x,-z)); sh.closePath(); return sh; }
+for(const h of allHex){
+  if(h.extra){   /* 碼頭那一格（家長 11-20 07:26、07:40）：後半是水泥碼頭、前半整個打開就是海，港池和海連成一片 */
+    const ZC=.05;
+    land.add(slab(hexClip(R+.2,ZC+.4),1.55,-1.6,quayM,.07,h.x,h.z));                 // 水泥碼頭塊（泡在水裡）
+    land.add(slab(hexClip(R+.05,ZC+.2),.1,-.12,quayDM,.03,h.x,h.z));                 // 岸壁收邊
+    land.add(slab(hexClip(R,ZC),.26,-.26,walkM,.04,h.x,h.z));
+    land.add(slab(hexClip(R-.3,ZC),.22,-.2,L.mat(ZONES[h.key].color,{roughness:.92}),.04,h.x,h.z));
+    continue; }
+  land.add(slab(hexShape(R-.12),1.15,-1.45,soilM,.1,h.x,h.z));                       // 土層
+  land.add(slab(hexShape(RA),.3,-.275,roadM,0,h.x,h.z));                              // 馬路（格子之間、外圍一圈）
+  land.add(slab(hexShape(R),.26,-.26,walkM,.04,h.x,h.z));                            // 人行道（格子邊緣一圈，比馬路高一階）
+  land.add(slab(hexShape(R-.3),.22,-.2,L.mat(ZONES[h.key].color,{roughness:.92}),.04,h.x,h.z)); // 各區地面
+}
+/* 碼頭的人行道：從火車站旁邊那一格穿過鐵軌走到碼頭（鐵軌上的平交道在 s2_station.js 畫） */
+for(const h of hexes) if(h.extra&&h.bridgeTo){ const u=hexes.find(x=>x.id===h.bridgeTo); if(!u) continue;
+  const z0=u.z+RR*.88, z1=h.z-RR*.88, m=new THREE.Mesh(new THREE.BoxGeometry(1.7,.05,z1-z0),walkM);
+  m.position.set(u.x,.015,(z0+z1)/2); m.receiveShadow=true; land.add(m);
+  for(let z=z0+.4;z<z1-.2;z+=.55){ const d=new THREE.Mesh(new THREE.BoxGeometry(1.4,.012,.14),L.mat('#ffffff',{roughness:.95})); d.position.set(u.x,.045,z); land.add(d); } }
+
+/* 馬路標線：每一段路畫黃色虛線分隔雙向；斑馬線先不畫、不要紅綠燈 */
+{ const mk=new THREE.Group(); land.add(mk); const yM=L.mat('#e9d9a6'), wM=L.mat('#f7f7f2'), seen=new Set();
+  for(const h of allHex){ if(h.extra) continue;   /* 碼頭那一格在海上，沒有馬路、不畫標線 */
+   for(let i=0;i<6;i++){ const a0=i*Math.PI/3, a1=(i+1)*Math.PI/3;
+    const A={x:h.x+RR*Math.cos(a0),z:h.z-RR*Math.sin(a0)}, B={x:h.x+RR*Math.cos(a1),z:h.z-RR*Math.sin(a1)}, k=Math.round((A.x+B.x)*5)+','+Math.round((A.z+B.z)*5);
+    if(seen.has(k)) continue; seen.add(k);
+    const L0=Math.hypot(B.x-A.x,B.z-A.z), ux=(B.x-A.x)/L0, uz=(B.z-A.z)/L0, rot=-Math.atan2(uz,ux);
+    const put=(m,d,off,w,l)=>{ const g=new THREE.Mesh(new THREE.BoxGeometry(l,.012,w),m); g.position.set(A.x+ux*d-uz*off,.031,A.z+uz*d+ux*off); g.rotation.y=rot; g.receiveShadow=true; mk.add(g); };
+    for(let d=1.55;d<L0-1.5;d+=.5) put(yM,d+.15,0,.07,.3);                                      // 中間黃色虛線
+    /* 斑馬線：家長 11-13 13:05 先不畫（要畫時：put(wM,距路口,j*.2,.12,.5)，j=-3..3） */
+  } } }
+/* 後山的山腳地和左邊的河岸：圓弧形的陸地，不是方形 */
+function ell(cx,cz,rx,rz){ const sh=new THREE.Shape(); for(let i=0;i<=48;i++){ const t=i/48*Math.PI*2, x=cx+rx*Math.cos(t), y=-(cz+rz*Math.sin(t)); if(i) sh.lineTo(x,y); else sh.moveTo(x,y); } return sh; }
+const GREEN=L.mat('#8fd06a',{roughness:.95});
+const MZ0=minBack-12, MZ1=minBack+H/2+.4;
+const BZ1=hexAt(4,0).z+H/2+.2;
+/* 家長 11-25 22:40：南邊新格子那邊的海岸線，改成一整條平順往外鼓的弧線（原本另外疊一塊橢圓，會有凹口、還會閃） */
+let BUMP=()=>0;
+function sup(cx,cz,rx,rz,n=2.6){ const sh=new THREE.Shape(); for(let i=0;i<=240;i++){ const t=i/240*Math.PI*2, c=Math.cos(t), s2=Math.sin(t); const x=cx+rx*Math.sign(c)*Math.pow(Math.abs(c),2/n); let z=cz+rz*Math.sign(s2)*Math.pow(Math.abs(s2),2/n); if(s2>0) z+=BUMP(x)*Math.min(1,s2*4); if(i) sh.lineTo(x,-z); else sh.moveTo(x,-z); } return sh; }
+/* 家長 11-18：外圍要繞一圈鐵路（全部在 50 格外面），整片陸地跟著放大、四角比較方 */
+const BL={cx:-1.5,rx:xR+12.5,rz:(maxFront-minBack)/2+12.8,n:4.5}; BL.cz=maxFront+8.3-BL.rz;   // 家長 19:43：陸地比格子大一圈，四周多留草地   // 整片陸地：圓角的大塊，不是六角形鋸齒
+const LANDS=[ [0,MZ0+8,xR+8,16] ];
+/* 新格子凸到海邊的那一格（垃圾 053）底下補一小塊陸地；寬度收在兩頭引道之間，不碰到引道 */
+{ const c0=x=>BL.cz+BL.rz*Math.pow(Math.max(0,1-Math.pow(Math.abs(x-BL.cx)/BL.rx,BL.n)),1/BL.n);
+  const far=hexes.filter(h=>h.south&&h.z+H/2+GAP>maxFront+.5);
+  if(far.length){ const hc=far.reduce((a,b)=>b.z>a.z?b:a), A=Math.max(...far.map(h=>h.z+H/2+GAP+1.8-c0(h.x))), xc=hc.x;
+    const xW=hexAt(0,0).x-5.0-GAP*1.2+3.0, tun=(STN.tunnels||[])[0], xE=tun?tun[1]+STN.trench.e+6:xc+14;   // 西邊從河口旁邊開始、東邊在引道東頭外面收掉
+    const sm=u=>{ u=Math.max(0,Math.min(1,u)); return u*u*u*(u*(u*6-15)+10); };
+    BUMP=x=>A*(x<xc?sm((x-xW)/(xc-xW)):sm((xE-x)/(xE-xc))); } }   // 第 5 個數字：岸邊白浪圈最寬到多少（不要伸進引道）   // [中心x, 中心z, 半徑x, 半徑z]   /* 家長 11-20 07:26：海岸線不要凸出去，碼頭那一格直接一半在海上 */
+for(const [cx,cz,rx,rz] of LANDS){ land.add(slab(holed(ell(cx,cz,rx,rz)),1.0,-1.35,soilM,.1)); land.add(slab(holed(ell(cx,cz,rx,rz)),.2,-.235,GREEN,.03)); }   // 比大塊陸地低一點點，兩層草地不會疊在一起閃
+land.add(slab(holed(sup(BL.cx,BL.cz,BL.rx,BL.rz,BL.n)),1.0,-1.35,soilM,.1)); land.add(slab(holed(sup(BL.cx,BL.cz,BL.rx,BL.rz,BL.n)),.2,-.215,GREEN,.03));
+/* 把六角街區的石板底蓋回在草地上面（草地比街區高一點點，所以先畫草地、街區再抬高一點） */
+land.children.forEach(m=>{});
+/* 河：從左後方山上的水庫一路流到左前方入海 */
+const riverX=hexAt(0,0).x-3.75;   // 河從自來水廠西邊流過
+const coastAt=x=>BL.cz+BL.rz*Math.pow(Math.max(0,1-Math.pow(Math.abs(x-BL.cx)/BL.rx,BL.n)),1/BL.n)+BUMP(x);   // 南邊海岸線在這個 x 的位置
+const RZ1=(()=>{ const rx=BL.rx,rz=BL.rz,n=BL.n, xm=hexAt(0,0).x-5.0-GAP*1.2; return BL.cz+rz*Math.pow(Math.max(.05,1-Math.pow(Math.min(.97,Math.abs(xm-BL.cx)/rx),n)),1/n); })();   /* 河口：河道最後的位置剛好碰到海岸（家長 11-18 陸地放大後重算） */
+/* 河道彎曲：不壓到格子，照家長畫的紅線做一個平順的大彎（家長 11-13 09:46、09:57） */
+const riverPath=z=>{ const h0=hexAt(0,0), z0=h0.z-H/2, tt=Math.min(1,Math.max(0,(z-z0)/(RZ1+.8-z0)));   /* 從第一排格子的北邊開始彎 */ return h0.x-5.0-GAP*1.2-3.2*Math.pow(Math.sin(Math.PI*tt),1.3); };   // 家長 09:57 畫的紅線：一個平順的大彎，中間往西
+/* 河口（家長 11-20 08:47）：河只接到出海口為止，外面的海不要畫東西。
+   河面高度一路維持 .031（和陸地一樣高），河口那一排的 z 夾在自己那個 x 的海岸線上，
+   所以收尾會貼著彎彎的海岸線，不會有一塊綠色露出來，也不會有一截藍色浮在海上。 */
+const river=(()=>{ const zA=MZ0, zB=RZ1+3.0, n=Math.ceil((zB-zA)/.4), pos=[], idx=[];
+  const sm=u=>{ u=Math.max(0,Math.min(1,u)); return u*u*(3-2*u); };
+  const wOf=z=>.7+.62*sm((z-(RZ1-6.0))/6.0);                                  // 快到出海口時稍微變寬一點
+  for(let i=0;i<=n;i++){ const z=zA+(zB-zA)*i/n, x=riverPath(z), w=wOf(z);
+    const xa=x-w, xb=x+w;
+    pos.push(xa,.031,Math.min(z,coastAt(xa)+.02), xb,.031,Math.min(z,coastAt(xb)+.02));
+    if(i<n){ const k=i*2; idx.push(k,k+2,k+1, k+1,k+2,k+3); } }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+  return new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x5cc6ee,roughness:.25,metalness:.05,side:THREE.DoubleSide})); })();
+land.add(river);
+STN.riverPath=riverPath; STN.riverZ=[MZ0,RZ1+.8]; STN.coastZ=coastAt;
+   // 水庫
+/* 山脈：一整條圓滑相連的山稜（弧形環繞在城市後方），不是尖錐 */
+const mountG=new THREE.Group(); scene.add(mountG);
+{ const W=2*(BL.rx+12), D=40, zc0=MZ0+2, PEAKS=[[-34,MZ0+2,6.5,7.5,6],[-23,MZ0-1,9,8.5,6.5],[-11,MZ0,8,8,6.2],[0,MZ0-2,10.5,9,7],[12,MZ0,8.5,8.5,6.5],[23,MZ0-1,9.5,8.5,6.5],[34,MZ0+2,7,7.5,6]], sm=(a,b,x)=>{ const t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); };
+  const mg=new THREE.PlaneGeometry(W,D,160,80); mg.rotateX(-Math.PI/2);
+  const p=mg.attributes.position, col=new Float32Array(p.count*3), c=new THREE.Color();
+  const cLo=new THREE.Color('#7ccb68'), cMid=new THREE.Color('#58a96c'), cHi=new THREE.Color('#a8dca4');
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i), z=p.getZ(i)+zc0, cz=zc0+x*x*.0035;
+    // 一座一座圓胖的山（家長 19:49：不要扁長的一條），沿著城市後方排成一排、兩邊往前包
+    let h=0; for(const [px,pz,ph,sx,sz] of PEAKS){ const dx=(x-px)/sx, dz=(z-(pz+px*px*.0035))/sz; h=Math.max(h,ph*Math.exp(-(dx*dx+dz*dz))); }
+    h*=1-sm(xR-2,xR+8,Math.abs(x));
+    if(Math.abs(x)<xR+1) h*=1-sm(minBack-10,minBack-.2,z);
+    h*=sm(1.4,4.5,railDist(RAIL,x,z));   // 鐵路經過的地方壓平   // 家長 20:12：山不能長到格子底下（建築會陷進去），最後一排格子後面才開始隆起
+    const inSup=Math.pow(Math.abs(x-BL.cx)/BL.rx,BL.n)+Math.pow(Math.abs(z-BL.cz)/BL.rz,BL.n)<.985, inEll=Math.pow(x/LANDS[0][2],2)+Math.pow((z-LANDS[0][1])/LANDS[0][3],2)<.985;
+    p.setY(i,(inSup||inEll)?Math.max(h,.02):(h<.04?-3:h));   // 陸地上一路平順接到地面，不會有一道牆
+    c.copy(cLo).lerp(cMid,Math.min(1,h/5)).lerp(cHi,Math.max(0,Math.min(1,(h-7)/4)));
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+  }
+  mg.setAttribute('color',new THREE.BufferAttribute(col,3)); mg.computeVertexNormals();
+  const mm=new THREE.Mesh(mg,new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:.95}));
+  mm.position.set(0,-.2,zc0); mm.castShadow=true; mm.receiveShadow=true; mountG.add(mm);
+}
+/* 山腳的茶園梯田 */
+L.setRoot(mountG);
+
+/* 遠處的小圓島：像參考圖一樣散在海上 */
+for(let [x,z,r,k] of [[-46,12,3.4,'tree'],[46,0,3,'rock'],[-30,40,2.6,'tree'],[34,40,3.2,'palm'],[-50,-14,2.8,'rock']]){ x*=K*1.05; z*=K;   /* 地圖變大，小島跟著往外 */
+  const g=new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+  for(const [rr,y,h,cc] of [[r+.9,-.62,.5,'#f2deae'],[r,-.2,.4,'#9ad874']]){ const m=new THREE.Mesh(new THREE.CylinderGeometry(rr*.9,rr,h,18),L.mat(cc,{flatShading:true})); m.position.y=y; m.receiveShadow=true; g.add(m); }
+  L.setRoot(g); if(k==='tree'){ L.tree(0,0,1.1); L.tree(1.2,.8,.8); } else if(k==='palm'){ L.palm(0,0,1.1); L.palm(-1,.8,.8); } else { const rk=L.sphere(.9,'#b7a99a',0,.2,0,{flatShading:true}); rk.scale.set(1.3,.7,1); }
+}
+
+/* ---------- 海：低多邊形的波浪＋淺水區＋岸邊白浪（每格六角形各一圈，疊起來就是整條海岸線） ---------- */
+const seaGeo=new THREE.PlaneGeometry(320,320,100,100); seaGeo.rotateX(-Math.PI/2);
+const sea=new THREE.Mesh(seaGeo,new THREE.MeshStandardMaterial({color:0x3cb6e2,roughness:.35,metalness:.05,flatShading:true}));
+sea.position.y=-.7; sea.receiveShadow=true; scene.add(sea);
+const seaBase=seaGeo.attributes.position.array.slice();
+/* 引道底下的海面壓低（海面是一整片在陸地下面的平面，挖開地面後會從引道裡露出來） */
+const seaDeep=new Uint8Array(seaBase.length/3);
+for(const [a,b] of STN.tunnels||[]) for(let i=0;i<seaDeep.length;i++){ const x=seaBase[i*3]+sea.position.x, z=seaBase[i*3+2]+sea.position.z;
+  if(x>a-STN.trench.w-3.6&&x<b+STN.trench.e+3.6&&Math.abs(z-RAIL.z1)<1.35+3.6&&z<coastAt(x)-1) seaDeep[i]=1;   /* 只壓陸地底下的，海面上不會凹一個洞 */ }
+{ const p=seaGeo.attributes.position.array; for(let i=0;i<seaDeep.length;i++) if(seaDeep[i]) p[i*3+1]=-2.6; seaGeo.attributes.position.needsUpdate=true; }
+const shM=new THREE.MeshStandardMaterial({color:0x7fdbee,roughness:.3}), f2M=new THREE.MeshStandardMaterial({color:0xbdeff6,roughness:.5}), fM=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.6});
+const coast=new THREE.Group(); scene.add(coast);
+for(const [pad,y,m] of [[3.2,-.46,shM],[1.4,-.42,f2M],[.55,-.38,fM]]) { for(const [cx,cz,rx,rz,cap] of LANDS) coast.add(slab(holed(ell(cx,cz,cap?Math.min(rx+pad,cap):rx+pad,rz+pad)),.02,y-.012,m)); coast.add(slab(holed(sup(BL.cx,BL.cz,BL.rx+pad,BL.rz+pad,BL.n)),.02,y,m)); }   // 引道的洞也要挖穿岸邊的淺水圈
+/* 碼頭那一格前面：港灣的水（家長 11-20 07:40 港池打開）。蓋過岸邊的白浪圈，船才不會被白浪擋住；
+   後半被碼頭的水泥塊蓋住，所以只會看到碼頭前面那一片 */
+for(const h of hexes) if(h.extra) coast.add(slab(ell(h.x,h.z+1.1,7.6,6.8),.02,-.36,L.mat('#6fd0ee',{roughness:.3,transparent:true,opacity:.9})));
+const foam=fM, foam2=f2M;
+
+/* ---------- 被切成兩半的格子（其他區、美食區）：中間畫一條淡淡的分隔線 ---------- */
+L.setRoot(land);
+for(const h of hexes) if(SPLIT.has(h.key)){ const m=new THREE.Mesh(new THREE.BoxGeometry(2*R-1.4,.02,.09),L.mat('#ffffff',{transparent:true,opacity:.7})); m.position.set(h.x,.07,h.z); land.add(m); }   /* 家長 11-13：中線改成上下切的方向（沿 x）。家長 11-12 點半格會閃：各區地面頂在 y .06，中線、亮光、空地標線都要高過它 */
+/* 11-25 速度：地面、馬路、黃色虛線都不會動，同顏色的合成一個（原本光虛線就有幾百個） */
+/* 家長 11-25 22:57：蓋了火車站才出現地下化的引道。還沒蓋時引道收起來，挖開的洞用草地蓋子蓋住 */
+const trenchG=buildTrench(); scene.add(trenchG); trenchG.visible=false; try{ bakeLot(trenchG); }catch(e){}
+const lidG=new THREE.Group(); scene.add(lidG);
+for(const h of trenchHoles()){ const p=h.getPoints(), xs=p.map(q=>q.x), ys=p.map(q=>-q.y), x0=Math.min(...xs), x1=Math.max(...xs), z0=Math.min(...ys), z1=Math.max(...ys);
+  const lid=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,.25,z1-z0),GREEN);   /* 蓋子比草地的洞大一點點（洞邊有圓角），略高 3 毫米，蓋住圓角，不會看到一條線 */ lid.position.set((x0+x1)/2,.018-.125,(z0+z1)/2); lid.receiveShadow=true; lidG.add(lid); }
+try{ bakeLot(land); }catch(e){ console.warn('bake land',e); }
+
+/* ---------- 土地（Plot）：每塊地在畫面上的位置，和看不見的「點擊板」 ---------- */
+const tilePos=id=>{ const h=hexes.find(x=>x.id===id); return {x:h.x,z:h.z}; };
+function plotPos(pid,rec){   // 建築或空地的中心：半格上下切（A 上、B 下），上面那半轉 180 度讓門口對上面的路；整格建築蓋在半格上就放在整格中間；佔 2 格放在兩格中間
+  const p=PLOTS[pid], c=tilePos(p.tile), ty=rec&&TYPES[rec.t];
+  if(ty&&ty.size===2&&rec.occ&&rec.occ[0]){ const o=tilePos(rec.occ[0]); let dx=o.x-c.x, dz=o.z-c.z; if(dx<0){ dx=-dx; dz=-dz; } return {x:(c.x+o.x)/2,z:(c.z+o.z)/2,rot:Math.atan2(-dz,dx)}; }   /* 佔 2 格：群組轉到兩格排列的方向（建築的 x 沿著兩格，正門朝前） */
+  if(p.half&&!(ty&&ty.size==='full')&&!(rec&&rec.t==='temple'&&rec.lv>=2)) return {x:c.x,z:c.z+p.side*H*.24,rot:p.side<0?Math.PI:0};
+  return c;
+}
+function halfShape(side){ const k=Math.abs(side), sg=Math.sign(side), s=new THREE.Shape(), pts=[[-R*k,0],[-R/2*k,-sg*H/2*k],[R/2*k,-sg*H/2*k],[R*k,0]]; pts.forEach(([x,y],i)=>i?s.lineTo(x,y):s.moveTo(x,y)); s.closePath(); return s; }
+const pickG=new THREE.Group(); scene.add(pickG); const pickMat=new THREE.MeshBasicMaterial({visible:false});
+for(const pid in PLOTS){ const p=PLOTS[pid], c=tilePos(p.tile);
+  const g=new THREE.ShapeGeometry(p.half?halfShape(p.side):hexShape(R-.3)); g.rotateX(-Math.PI/2);
+  const m=new THREE.Mesh(g,pickMat); m.position.set(c.x,.05,c.z); m.userData.pid=pid; pickG.add(m); }
+const hiMat=new THREE.MeshBasicMaterial({color:0xfff27a,transparent:true,opacity:.5,depthWrite:false});
+function plotGlow(pid,mat){ const p=PLOTS[pid], c=tilePos(p.tile), g=new THREE.ShapeGeometry(p.half?halfShape(p.side*.92):hexShape(R-.55)); g.rotateX(-Math.PI/2);
+  const m=new THREE.Mesh(g,mat); m.position.set(c.x,.095,c.z+(p.half?p.side*.06:0)); m.renderOrder=2; return m; }
+
+/* ---------- 建築種類 → 怎麼畫、名牌多高 ---------- */
+const S1B={ power:POWER_LV, water:WATER_LV, sewage:SEWAGE_LV, trash:TRASH_LV, home:HOME_LV, garden:GARDEN_LV, ranch:RANCH_LV, library:LIBRARY_LV, clinic:CLINIC_LV, hospital:HOSPITAL_LV, breakfast:[BREAKFAST_LV[1]], market:MARKET_LV, conv:CONV_LV, park:PARK_LV, observatory:ASTRO_LV, pier:PIER_LV, train:STATION_LV, firestation:FIRE_LV, policebox:POLICE_LV, temple:TEMPLE_LV, stationery:STATIONERY_LV, art:ART_LV, bank:BANK_LV, orchard:ORCHARD_LV, tea:TEA_LV, bakery:[BAKERY_LV[1]], nightmarket:[NIGHT_LV[1]], fastfood:FASTFOOD_LV, icecream:ICECREAM_LV, burger:FASTFOOD_LV, japanese:JAPANESE_LV };
+const S1TOP={ power:[0,3.4,3.6,3.6], water:[0,2.8,3.0,3.6], sewage:[0,2.0,2.4,4.6], trash:[0,3.2,4.6], home:[0,2.6,2.8,4.8], garden:[0,2.2,3.8], ranch:[0,3.2,3.6], library:[0,3.1,4.2,5.3], clinic:[0,3.0], hospital:[0,4.1,6.2,8.4], breakfast:[0,4.2], market:[0,2.9,2.9,4.0], conv:[0,2.9], park:[0,2.3,2.3], observatory:ASTRO_TOP, pier:PIER_TOP, train:STATION_TOP, firestation:FIRE_TOP, policebox:POLICE_TOP, temple:TEMPLE_TOP, stationery:STATIONERY_TOP, art:ART_TOP, bank:BANK_TOP, orchard:ORCHARD_TOP, tea:TEA_TOP, bakery:[0,BAKERY_TOP[2]], nightmarket:[0,NIGHT_TOP[2]], fastfood:FASTFOOD_TOP, icecream:ICECREAM_TOP, burger:FASTFOOD_TOP, japanese:JAPANESE_TOP };
+const TOPS=[0,3.2,3.6,4.2,5.0,5.5], TOPM=[0,2.4,2.9,3.4,3.9,4.3];
+const TOPH=(t,lv)=>S1B[t]?S1TOP[t][lv]:t==='mayor'?TOPM[lv]:TOPS[lv]*(t==='school'?.85:1);
+/* 整格建築的六角底盤（家長 11-13 09:46）：市政廳草地、市長的家淺石板、學校米色、菜園牧場泥土色；四座基礎建設不鋪；一之一 7 棟自己畫 */
+const PAD={hall:'#a9d98a',mayor:'#e9e2d3',school:'#e6dccb',garden:'#b9946a',ranch:'#c9a77a'};
+/* 底盤很薄，舊建築原本貼地的東西（跑道、廣場）才不會被蓋住 */
+function drawType(t,lv){ if(PAD[t]) L.hexPad(PAD[t],.42,.004,-.005); if(S1B[t]) S1B[t][lv-1][2](); else BUILDINGS[t].levels.find(x=>x.lv===lv).fn(); }
+/* 測試模式：家長看每一棟逐級長大的樣子、試著蓋在別的格子，不動存檔 */
+const TM={on:false,b:{}};
+const curB=()=>TM.on?TM.b:S.b;
+/* 空地記號：家長 11-20 12:43：木牌「空地」和綠十字全部拿掉（emptyLot 不再呼叫，留著備用）。可以蓋的地只在「建造」選好建築後由 setHi 發亮 */
+const pulses=[];
+function emptyLot(size){
+  const h=size/2-.35;
+  /* 家長 11-14：平常不亮（拿掉四角標線和呼吸的淡綠色），選好要蓋的建築後才由 setHi 讓可以蓋的土地發亮；木牌和綠十字保留 */
+  for(const dx of [-.32,.32]) L.cyl(.03,.03,.6,'#8b5a3c',dx,0,size/2-.7,8);
+  L.textPlate('空地',.7,.3,'#f3ffe8','#3f9a4a',0,.36,size/2-.7);
+  const plus=L.rbox(.12,.5,.12,'#5fc46a',0,.95,size/2-.7,.04); const plus2=L.rbox(.5,.12,.12,'#5fc46a',0,1.14,size/2-.7,.04); pulses.push(plus,plus2);
+}
+const canBuildHere=pid=>Object.keys(TYPES).some(t=>TYPES[t].zone===PLOTS[pid].zone&&!canPlace(S.b,t,pid).why);
+
+/* ---------- 城市：依存檔（或測試模式）畫出每塊地上的建築 ---------- */
+let UI=null; const groupOf={}; const lotGroups=[]; const tagsEl=document.getElementById('tags'); const tags=[]; const lotTags=[]; let hiPids=[]; const hiMeshes=[];
+/* 家長 11-25 速度優化：原本每次蓋、升級、改名，整座城市所有建築都拆掉重畫一次（建築越多越慢）。
+   改成每塊地記住自己畫了什麼（lots），只重畫有變動的那幾塊；每塊地的小動畫、旗子、煙等也記在自己名下，拆掉時一起拿掉。 */
+const LISTS=()=>[L.flags,L.anims,L.animals,L.drops,L.spinners,L.puffs,pulses,rotors,blinkers,sewBlink,trashBlink,binLids];
+const lots={}; let cityVer=0, shadowDirty=true; const PERF={before:0,after:0};
+const SHARED=()=>new Set(Object.values(L.mats));
+/* 拆掉／重畫一塊地：零件、這棟自己的材質和貼圖都放掉（共用的材質不動）。原本只放掉零件，升級越多次記憶體越多，iPad 會越來越慢 */
+function dropLot(id){ const o=lots[id]; if(!o) return; scene.remove(o.g); const keep=SHARED(), ms=new Set();
+  o.g.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material) for(const m of [].concat(x.material)) if(!keep.has(m)&&m!==L.glassMat&&m!==L.cityFlagMat) ms.add(m); });
+  for(const m of ms){ for(const k of ['map','emissiveMap','normalMap','roughnessMap','alphaMap']) if(m[k]&&m[k].isCanvasTexture&&!m[k].userData.keep) m[k].dispose(); m.dispose(); }
+  for(const [arr,items] of o.own){ if(!items.length) continue; const s=new Set(items); for(let i=arr.length-1;i>=0;i--) if(s.has(arr[i])) arr.splice(i,1); }
+  const i=lotGroups.indexOf(o.g); if(i>=0) lotGroups.splice(i,1); if(groupOf[id]===o.g) delete groupOf[id]; delete lots[id]; }
+function clearLots(){ for(const id of Object.keys(lots)) dropLot(id); for(const t of lotTags){ t.remove(); const i=tags.findIndex(x=>x.el===t); if(i>=0) tags.splice(i,1); } lotTags.length=0; }
+/* 畫一塊地：記下畫之前各清單有多長，畫完多出來的就是這塊地的；最後把不會動的零件合併（perf.js） */
+function buildLot(id,sig,draw,cx,cz){ const lens=LISTS().map(a=>a.length), pl=pendingLen(), g=draw(), ps=pendingFrom(pl);
+  const own=LISTS().map((a,i)=>[a,a.slice(lens[i])]), mine=own[1][1];
+  for(const f of mine) f.__lot=id; for(const fl of own[0][1]) fl.__lot=id;
+  const known=[...own[0][1].map(x=>x.m),...own[2][1].map(x=>x.g),...own[3][1].map(x=>x.d),...own[4][1],...own[5][1].map(x=>x.m),...own[6][1],...own[7][1],...own[11][1]];
+  const o=lots[id]={sig,g,own,mine,known,c:new THREE.Sphere(new THREE.Vector3(cx,1.5,cz),id==='__rail'?1e4:7)}; shadowDirty=true;
+  /* 下載的模型要等載好才合併（不然模型零件一個都沒合到）；載好前先照原樣畫 */
+  if(ps.length){ o.wait=1; Promise.all(ps).then(()=>{ if(lots[id]!==o) return; o.wait=0; bakeQ.push(id); shadowDirty=true; if(bakeQ.length<=3) bakeSome(1e9); }); } else bakeQ.push(id);
+  return g; }
+/* 合併零件放到之後慢慢做（每一格畫面做一點），一打開遊戲不會因此多等；只蓋一兩棟時馬上做完 */
+const bakeQ=[];
+function bakeSome(ms){ const t0=performance.now(); while(bakeQ.length&&performance.now()-t0<ms){ const id=bakeQ.shift(), o=lots[id]; if(!o||o.baked) continue; o.baked=1;
+  try{ const B=curB(), r=bakeLot(o.g,{anims:o.mine,known:o.known,flat:!(B[id]&&B[id].t==='observatory')}); PERF.before+=r.before; PERF.after+=r.after; shadowDirty=true; }catch(e){ console.warn('bake',id,e); } } }
+let selPid=null;   /* 家長 11-12：建築名牌平常不顯示，點到那棟才出現 */
+function addTag(label,sub,cls,p,onclick,pid){ const b=document.createElement('button'); b.type='button'; b.className='tag '+cls; b.innerHTML=`${label}<small>${sub}</small>`; b.onclick=onclick; tagsEl.appendChild(b); tags.push({el:b,p,pid}); return b; }
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* 半格建築：z' = a + k·z，把建物背面收到 z≈-1.25（原本貼到 -1.4～-1.84，跟另一半背靠背）；前面最多到 1.6。數字由各建築量出來的前後範圍算的 */
+const HALF_FIT={ breakfast:[.064,.853], clinic:[.30,1], conv:[.27,.944], firestation:[.095,.934], policebox:[.19,1], temple:[.29,1], stationery:[.15,1], bakery:[.59,1], fastfood:[.19,.87], burger:[.19,.87], icecream:[.30,.953] };
+function backHedge(){ const z=-1.42, len=2.6, HG='#5f9a4f';
+  L.rbox(len,.12,.13,'#8a6a48',0,.09,z,.02); const h=L.rbox(len-.04,.14,.11,L.mat(HG,{roughness:.9}),0,.2,z,.05);
+  for(let i=0;i<9;i++){ const b=L.sphere(.085,L.mat(i%2?'#679f55':'#5a9149',{flatShading:true}),-len/2+.15+i*(len-.3)/8,.34,z); b.scale.set(1.2,.55,.8); }
+  for(const s of [-1,1]){ L.cyl(.09,.07,.16,'#b5704f',s*(len/2+.22),.09,z,12); const p=L.sphere(.12,L.mat('#4f8a44',{flatShading:true}),s*(len/2+.22),.33,z); p.scale.y=.9; } }
+function renderCity(){
+  const B=curB(); cityVer++;
+  for(const t of lotTags){ t.remove(); const i=tags.findIndex(x=>x.el===t); if(i>=0) tags.splice(i,1); } lotTags.length=0;
+  /* 碼頭和火車站會互相影響（鐵路、平交道），其中一個變了兩個都重畫 */
+  const tp=Object.keys(B).filter(p=>B[p].t==='train'||B[p].t==='pier').map(p=>p+B[p].t+B[p].lv).sort().join();
+  const sigOf=pid=>{ const r=B[pid]; return r.t+'|'+r.lv+'|'+(r.occ||[]).join(',')+(r.t==='train'||r.t==='pier'?'|'+tp:''); };
+  for(const id of Object.keys(lots)) if(id!=='__rail'&&(!B[id]||lots[id].sig!==sigOf(id))) dropLot(id);
+  for(const pid in B){ const rec=B[pid], pos=plotPos(pid,rec), sig=sigOf(pid);
+    if(rec.t==='train') STN.dz=RAIL.z1-pos.z;
+    if(!lots[pid]) buildLot(pid,sig,()=>{
+      const g=new THREE.Group(); g.position.set(pos.x,0,pos.z); g.rotation.y=pos.rot||0; scene.add(g); lotGroups.push(g); groupOf[pid]=g; g.userData.pid=pid; L.setRoot(g);
+      if(PLOTS[pid]&&PLOTS[pid].half&&HALF_FIT[rec.t]&&!(rec.t==='temple'&&rec.lv>=2)){   // 半格建築往前收，背面不要和另一半背靠背（家長 11-19 13:08）
+        const [a,k]=HALF_FIT[rec.t], inner=new THREE.Group(); inner.position.z=a; inner.scale.z=k; g.add(inner); L.setRoot(inner); drawType(rec.t,rec.lv);
+        for(const m of [...inner.children]) if(m.isMesh&&m.geometry&&m.geometry.type==='ExtrudeGeometry'){ inner.remove(m); g.add(m); }   // 底盤（半格石板）維持原大小、原位置
+        L.setRoot(g); }
+      else drawType(rec.t,rec.lv);
+      if(PLOTS[pid]&&PLOTS[pid].half&&!(TYPES[rec.t]&&TYPES[rec.t].size==='full')&&!(rec.t==='temple'&&rec.lv>=2)) backHedge();   // 半格背面和另一半之間：一排矮樹籬＋兩盆小盆栽（家長 11-19 15:05）
+      return g; },pos.x,pos.z);
+    lotTags.push(addTag(esc(shownName(B,pid)),'Lv'+rec.lv,'',new THREE.Vector3(pos.x,TOPH(rec.t,rec.lv),pos.z),()=>tapBuilding(pid),pid));
+  }
+  { const st=Object.keys(B).find(p=>B[p].t==='train');   // 蓋了火車站才有外圍鐵路
+    trenchG.visible=!!st; lidG.visible=!st;
+    const pp=st&&Object.keys(B).find(p=>B[p].t==='pier'), rs=st?st+B[st].lv+'|'+(pp||''):'';
+    if(lots.__rail&&lots.__rail.sig!==rs) dropLot('__rail');
+    if(st&&!lots.__rail) buildLot('__rail',rs,()=>{ const g=buildRail({lv:B[st].lv,stationX:plotPos(st,B[st]).x,pier:pp?plotPos(pp,B[pp]):null}); scene.add(g); lotGroups.push(g); return g; },0,0); }
+  /* 家長 11-20 12:43：空地不再畫木牌「空地」和綠十字（原本每次重畫城市，像按建造、蓋好、升級後，又會冒出來） */
+  if(bakeQ.length<=3) bakeSome(1e9);
+  setHi(hiPids,hiDim);
+  if(UI) UI.refreshTop();
+}
+/* 「建造」選單選了一種建築：可以蓋的空地亮起來，孩子點一塊就蓋在那裡 */
+/* 家長 11-14（11-25 做）：選好要蓋的建築後，能蓋的地發亮、其他空地變暗（暗的部分合成一個，不多花力氣） */
+const dimMat=new THREE.MeshBasicMaterial({color:0x2a2540,transparent:true,opacity:.32,depthWrite:false});
+let hiDim=false;
+function setHi(pids,dim){ hiPids=pids||[]; hiDim=!!dim; for(const m of hiMeshes){ scene.remove(m); m.geometry.dispose(); } hiMeshes.length=0; for(const pid of hiPids){ const m=plotGlow(pid,hiMat); scene.add(m); hiMeshes.push(m); }
+  if(dim&&hiPids.length){ const occ=occupied(curB()), on=new Set(hiPids), gs=[];
+    for(const pid in PLOTS){ if(on.has(pid)||occ[pid]) continue; const m=plotGlow(pid,dimMat); m.updateMatrix(); const g=m.geometry.clone().applyMatrix4(m.matrix); m.geometry.dispose(); gs.push(g); }
+    if(gs.length){ const m=new THREE.Mesh(mergeGeometries(gs,false),dimMat); m.renderOrder=2; scene.add(m); hiMeshes.push(m); gs.forEach(g=>g.dispose()); } } }
+function tapBuilding(pid){ selPid=pid; setHi([]); const B=curB(); if(B[pid].t==='observatory') astroTap();   /* 11-19 18:58：點天文台，八大行星轉起來 */
+  if(LIFE) LIFE.react(B[pid].t,groupOf[pid]); flyTo(plotPos(pid,B[pid]),B[pid].t); if(TM.on) tmPick(pid); else UI.openCard(pid); }
+function tapPlot(pid){ if(PLOTS[pid]&&PLOTS[pid].zone==='none'&&!TM.on){ setHi([]); UI.toast&&UI.toast('這塊地還沒決定要蓋什麼喔'); return; }   /* 待定的地（家長 11-20 23:37） */
+  selPid=null; const pend=hiPids.includes(pid)?UI.pendingType():null; setHi([pid]); flyTo(plotPos(pid)); if(TM.on) UI.testPlace(pid); else UI.openPlot(pid,pend); }
+
+/* ---------- 拍照（升級前後對照）、彈一下 ---------- */
+const cam2=new THREE.PerspectiveCamera(32,1,1,320);
+function snap(pos,k){   // 從固定角度拍一張這棟建築的小圖（不影響畫面，下一格就會畫回來）
+  const W=canvas.clientWidth,H=canvas.clientHeight; cam2.aspect=W/H; cam2.updateProjectionMatrix();
+  cam2.position.set(pos.x+9*k,12*k+1,pos.z+17*k); cam2.lookAt(pos.x,1.2*k+.6,pos.z); renderer.render(scene,cam2);
+  const side=Math.min(W,H)*.9, px=renderer.getPixelRatio(), out=document.createElement('canvas'); out.width=out.height=260; const g=out.getContext('2d');
+  g.fillStyle='#bfe6f6'; g.fillRect(0,0,260,260); g.drawImage(canvas,(W-side)/2*px,(H-side)/2*px,side*px,side*px,0,0,260,260); return out.toDataURL('image/jpeg',.82);
+}
+const bounces=[];
+function bounce(pid){ const g=groupOf[pid]; if(g&&!reduceMotion) bounces.push({g,t:0}); }
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+UI=initUI({L,camera,BUILDINGS,TOPH,renderCity,flyTo,snap,bounce,plotPos,setHi,curB,TM});
+
+/* ---------- 測試模式（家長 19:48）：一進去 10 棟全部擺好、Lv1；點建築，名牌右邊出現 −／＋ 升降級；點空地可以試蓋別的 ---------- */
+const tmc=document.getElementById('tmc'); let tmSel=null;
+function tmPick(pid){ tmSel=pid; const r=TM.b[pid]; if(!r){ tmc.classList.remove('on'); return; } document.getElementById('tmL').textContent='Lv'+r.lv; document.getElementById('tmD').disabled=r.lv<=1; document.getElementById('tmU').disabled=r.lv>=TYPES[r.t].maxLv; tmc.classList.add('on'); }
+function tmStep(d){ if(!tmSel||!TM.b[tmSel]) return; const r=TM.b[tmSel]; r.lv=Math.max(1,Math.min(TYPES[r.t].maxLv,r.lv+d)); renderCity(); bounce(tmSel); tmPick(tmSel); }
+document.getElementById('tmD').onclick=()=>tmStep(-1); document.getElementById('tmU').onclick=()=>tmStep(1);
+document.getElementById('tmX').onclick=()=>{ if(!tmSel) return; delete TM.b[tmSel]; tmSel=null; tmc.classList.remove('on'); renderCity(); };
+function tmPlace(pid,t,occ){ TM.b[pid]={t,lv:1}; if(occ&&occ.length) TM.b[pid].occ=occ; setHi([]); renderCity(); bounce(pid); tmPick(pid); }
+{ const tmB=document.getElementById('tmB');
+  document.querySelectorAll('#tmW [data-n]').forEach(b=>b.onclick=()=>LIFE&&LIFE.setNight(+b.dataset.n)); document.querySelectorAll('#tmW [data-w]').forEach(b=>b.onclick=()=>LIFE&&LIFE.setWeather(b.dataset.w));
+  tmB.onclick=()=>{ TM.on=!TM.on; document.getElementById('tmW').classList.toggle('on',TM.on); if(!TM.on&&LIFE) LIFE.setNight(null); tmB.classList.toggle('on',TM.on); tmB.textContent=TM.on?'離開測試':'測試模式'; if(!TM.on){ tmB.hidden=true; tmB.style.display='none'; } tmSel=null; tmc.classList.remove('on'); setHi([]);
+    if(TM.on){ TM.b={}; for(const t in TEST_LAYOUT) TM.b[TEST_LAYOUT[t]]={t,lv:1}; UI.closeSheet(); }
+    renderCity(); flyTo(null); };
+}
+UI.setTestPlace(tmPlace);
+/* 點畫面：先看有沒有點到建築，沒有就看點到哪一塊地 */
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(); let pd=null;
+const touchIds=new Set(); let rot=null, lpTimer=0; const ring=document.getElementById('rotRing');
+let multiGesture=false;
+const endRot=()=>{ clearTimeout(lpTimer); lpTimer=0; if(rot){ rot=null; controls.enabled=!follow; ring.classList.remove('on'); } };
+canvas.addEventListener('pointerdown',e=>{ touchIds.add(e.pointerId); clearTimeout(lpTimer);
+  if(touchIds.size===1){ multiGesture=false; pd={x:e.clientX,y:e.clientY,t:performance.now()};
+    lpTimer=setTimeout(()=>{ lpTimer=0; if(!pd||touchIds.size!==1) return;
+      stopFollow(); fly=null; rot={x:pd.x,y:pd.y}; pd.rot=true; controls.enabled=false; ring.style.left=pd.x+'px'; ring.style.top=pd.y+'px'; ring.classList.add('on'); },450);
+  }else{multiGesture=true;pd=null;endRot();} });
+canvas.addEventListener('pointermove',e=>{
+  if(pd&&!rot&&Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>8){clearTimeout(lpTimer);lpTimer=0;if(follow&&!multiGesture)stopFollow();}
+  if(!rot||multiGesture) return; const dx=e.clientX-rot.x, dy=e.clientY-rot.y; rot.x=e.clientX; rot.y=e.clientY; ring.style.left=e.clientX+'px'; ring.style.top=e.clientY+'px';
+  const fwd=controls.target.clone().sub(camera.position);fwd.y=0;fwd.normalize();const right=new THREE.Vector3(-fwd.z,0,fwd.x);
+  const scale=2*camera.position.distanceTo(controls.target)*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/Math.max(1,canvas.clientHeight);
+  const next=controls.target.clone().addScaledVector(right,-dx*scale).addScaledVector(fwd,dy*scale);
+  next.x=THREE.MathUtils.clamp(next.x,-44,44);next.z=THREE.MathUtils.clamp(next.z,-32,36);
+  camera.position.add(next.clone().sub(controls.target));controls.target.copy(next);camera.lookAt(controls.target); });
+for(const ev of ['pointerup','pointercancel','pointerleave']) canvas.addEventListener(ev,e=>{touchIds.delete(e.pointerId);if(ev!=='pointerup')pd=null;if(!touchIds.size||ev!=='pointerup')endRot();});
+canvas.addEventListener('pointerup',e=>{
+  if(followPinch||multiGesture){pd=null;return;} if(!pd) return; const moved=Math.hypot(e.clientX-pd.x,e.clientY-pd.y), dt=performance.now()-pd.t, wasRot=pd.rot; pd=null; if(wasRot||moved>6||dt>500) return;
+  ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1); ray.setFromCamera(ndc,camera);
+  { const per=LIFE&&LIFE.pick(ray); if(per){ followPerson(per); return; } }   // 點到路上的人：說一句話，鏡頭拉近跟著他走（家長 11-19 17:18）
+  stopFollow();
+  const hit=ray.intersectObjects(lotGroups,true)[0];
+  if(hit){ let o=hit.object; while(o&&!lotGroups.includes(o)) o=o.parent; const pid=o&&o.userData.pid;
+    if(pid){ bounce(pid); if(!TM.on) UI.tapFx(curB()[pid].t,e.clientX,e.clientY); tapBuilding(pid); return; } }
+  const ph=ray.intersectObjects(pickG.children,false)[0];
+    if(!ph){ selPid=null; return; }   /* 11-26：改成拖曳移動，點草地、海不再移動鏡頭 */
+  const pid=ph.object.userData.pid, own=occupied(curB())[pid];
+  if(own){ bounce(own); tapBuilding(own); } else tapPlot(pid);
+});
+
+/* 點名牌：鏡頭飛過去；「看全城」飛回來 */
+let fly=null;
+function flyTo(pos,t){ stopFollow();
+  const tg=pos?new THREE.Vector3(pos.x,1.2,pos.z+(t==='school'?-.6:0)):HOME.target.clone();
+  const p=pos?tg.clone().add(t==='school'?new THREE.Vector3(7,15,14):new THREE.Vector3(9,12,17)):HOME.pos.clone();
+  fly={t0:controls.target.clone(),p0:camera.position.clone(),t1:tg,p1:p,k:0};
+}
+/* ---------- 點到人物：鏡頭拉近、跟著他走（家長 11-19 17:18）；點別的地方、按「看全城」或箭頭就停 ---------- */
+let follow=null;
+const followTouches=new Map(); let followPinch=false;
+function zoomFollow(factor){if(follow) follow.distance=THREE.MathUtils.clamp(follow.distance*factor,1.2,12);}
+canvas.addEventListener('wheel',e=>{if(follow){e.preventDefault();zoomFollow(Math.exp(e.deltaY*(e.deltaMode===1?.04:.002)));}},{passive:false});
+canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){followTouches.set(e.pointerId,[e.clientX,e.clientY]);if(follow&&followTouches.size>=2){followPinch=true;pd=null;clearTimeout(lpTimer);}}});
+canvas.addEventListener('pointermove',e=>{if(!followTouches.has(e.pointerId))return;const a=[...followTouches.values()];followTouches.set(e.pointerId,[e.clientX,e.clientY]);const b=[...followTouches.values()];if(follow&&a.length===2){const d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]),n=Math.hypot(b[0][0]-b[1][0],b[0][1]-b[1][1]);if(n>5&&d>5)zoomFollow(d/n);}});
+for(const ev of ['pointerup','pointercancel','pointerleave'])canvas.addEventListener(ev,e=>{followTouches.delete(e.pointerId);if(!followTouches.size)followPinch=false;});
+// Character faces local +Z; its anatomical right is local -X.
+const FOLLOW_AZIMUTH=Math.PI/4, FOLLOW_ELEVATION=25*Math.PI/180, FOLLOW_DISTANCE=3.6;
+const followTarget=new THREE.Vector3(), followOffset=new THREE.Vector3(), followWant=new THREE.Vector3();
+function followPerson(p){ fly=null; selPid=null; setHi([]);
+  if(!follow) follow={p,enabled:controls.enabled,distance:FOLLOW_DISTANCE}; else follow.p=p;
+  controls.enabled=false; controls.minDistance=.3; controls.maxPolarAngle=1.46;
+  if(UI&&UI.toast) UI.toast('右前方跟隨中，點別處離開');
+}
+function stopFollow(){ if(follow){ controls.enabled=follow.enabled; follow=null; controls.minDistance=1.2; controls.maxPolarAngle=1.25; } }
+function followTick(dt){
+  if(!follow) return false;
+  const o=follow.p.obj; if(!o.parent){ stopFollow(); return false; }
+  o.getWorldPosition(followTarget); followTarget.y+=.62;
+  const horizontal=follow.distance*Math.cos(FOLLOW_ELEVATION);
+  followOffset.set(-horizontal*Math.sin(FOLLOW_AZIMUTH),follow.distance*Math.sin(FOLLOW_ELEVATION),horizontal*Math.cos(FOLLOW_AZIMUTH));
+  followOffset.applyAxisAngle(THREE.Object3D.DEFAULT_UP,o.rotation.y);
+  followWant.copy(followTarget).add(followOffset);
+  const k=1-Math.exp(-dt*6);
+  controls.target.lerp(followTarget,k); camera.position.lerp(followWant,k);
+  return true;
+}
+// 移動範圍限制：不會把城市拖出畫面
+/* 左右箭頭：沿著鏡頭的左右方向滑動，距離跟著鏡頭遠近 */
+function panBy(dx,dz=0){ stopFollow(); const fwd=new THREE.Vector3().subVectors(controls.target,camera.position); fwd.y=0; fwd.normalize(); const right=new THREE.Vector3(-fwd.z,0,fwd.x);
+  const dist=camera.position.distanceTo(controls.target)*.28, t1=controls.target.clone().addScaledVector(right,dist*dx).addScaledVector(fwd,dist*dz);
+  t1.x=Math.max(-44,Math.min(44,t1.x)); t1.z=Math.max(-32,Math.min(36,t1.z)); const dv=t1.clone().sub(controls.target);
+  fly={t0:controls.target.clone(),p0:camera.position.clone(),t1,p1:camera.position.clone().add(dv),k:0}; }
+function glideTo(g){ stopFollow(); const t1=new THREE.Vector3(Math.max(-44,Math.min(44,g.x)),controls.target.y,Math.max(-32,Math.min(36,g.z))), dv=t1.clone().sub(controls.target);
+  fly={t0:controls.target.clone(),p0:camera.position.clone(),t1,p1:camera.position.clone().add(dv),k:0}; }
+document.getElementById('panL').onclick=()=>panBy(-1); document.getElementById('panR').onclick=()=>panBy(1); document.getElementById('panU').onclick=()=>panBy(0,1); document.getElementById('panD').onclick=()=>panBy(0,-1);
+/* 11-26：近平面跟著鏡頭距離調（遠看時深度更精準，比較不會有兩片東西搶著顯示的閃爍；拉近時也不會被切掉） */
+let nearNow=1; function fitNear(){ const d=camera.position.distanceTo(controls.target), n=Math.max(.2,Math.min(6,d*.12)); if(Math.abs(n-nearNow)/nearNow>.08){ nearNow=n; camera.near=n; camera.updateProjectionMatrix(); } }
+controls.addEventListener('change',()=>{ if(follow) return;   /* 跟著人走的時候不夾範圍，不然人走到邊邊鏡頭會被拉開 */
+  const t=controls.target; t.x=Math.max(-44,Math.min(44,t.x)); t.z=Math.max(-32,Math.min(36,t.z)); t.y=Math.max(0,Math.min(2.5,t.y)); });
+
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.fov=w/h<1?44:32; camera.updateProjectionMatrix(); UI.shiftView(); }
+addEventListener('resize',resize); resize();
+renderCity();
+let LIFE=null; window.__life=()=>LIFE; try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
+
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clk=new THREE.Clock(); const v3=new THREE.Vector3();
+/* 11-25：鏡頭看不到的建築，裡面的小動畫、旗子不用動（看得到的照常動） */
+const frus=new THREE.Frustum(), pv=new THREE.Matrix4(), lotSeen={}; let shadowTick=0;
+function updateSeen(){ pv.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse); frus.setFromProjectionMatrix(pv); for(const id in lots) lotSeen[id]=frus.intersectsSphere(lots[id].c); }
+const seen=o=>!o.__lot||lotSeen[o.__lot]!==false;
+let seaTick=0, lvFrame=0;
+renderer.setAnimationLoop(()=>{
+  /* 家長 11-20 12:43：「蓋好了／升級」畫面打開時，後面的城市被半透明蓋住，只要每 3 格畫 1 次，手機把力氣留給彩帶和彈出動畫，不會卡 */
+  if(document.querySelector('.lvup')){ if((lvFrame++%3)!==0) return; } else lvFrame=0;
+  const dt=Math.min(clk.getDelta(),.05), t=clk.elapsedTime;
+  followTick(dt);
+  if(fly){ fly.k=Math.min(1,fly.k+dt*1.6); const e=1-Math.pow(1-fly.k,3); controls.target.lerpVectors(fly.t0,fly.t1,e); camera.position.lerpVectors(fly.p0,fly.p1,e); if(fly.k>=1) fly=null; } fitNear();
+  if(!reduce){
+    /* 家長 11-25 17:14：海浪平常幾乎看不到（只有一開始看全城時看得到）→ 只有鏡頭拉遠看全城時才動，而且每 3 格才算 1 次 */
+    if(camera.position.distanceTo(controls.target)>60&&(seaTick++%3)===0){ const p=seaGeo.attributes.position.array; for(let i=0;i<p.length;i+=3){ if(seaDeep[i/3]) continue; const x=seaBase[i], z=seaBase[i+2]; p[i+1]=Math.sin(x*.33+t*1.1)*.09+Math.cos(z*.41+t*.9)*.08+Math.sin((x+z)*.18+t*.6)*.05; } seaGeo.attributes.position.needsUpdate=true; }
+    const f=(Math.sin(t*1.3)+1)/2; foam.color.setRGB(.88+.12*f,.96+.04*f,1); foam2.color.setRGB(.6+.1*f,.92,.95);
+    for(const g of pulses){ if(g.material.transparent) g.material.opacity=.18+.22*(Math.sin(t*2.2)+1)/2; else g.position.y+=Math.sin(t*3)*.002; }
+    hiMat.opacity=.3+.3*(Math.sin(t*4)+1)/2;
+    updateSeen();
+    for(const fl of L.flags){ if(!seen(fl)) continue; const p=fl.m.geometry.attributes.position; for(let i=0;i<p.count;i++){ const x=fl.base[i*3]; p.array[i*3+2]=Math.sin(x*9-t*4)*.04*x/.55; } p.needsUpdate=true; }
+    for(const sp of L.spinners) sp.rotation.y+=dt*.35*(LIFE?LIFE.boostOf(sp):1);
+    for(const r of rotors) r.rotation.z+=dt*1.6*(LIFE?LIFE.boostOf(r):1);                                         // 風車葉片、抽水機輪子
+    blinkers.concat(sewBlink,trashBlink).forEach((b,i)=>{ if(b.material) b.material.emissiveIntensity=Math.sin(t*3+i*1.7)>0?1:.15; });
+    for(const d of L.drops) d.d.position.copy(d.curve.getPoint((t*.7+d.o)%1));
+    L.animPuffs(t);                                                                    // 煙一團一團往上飄
+    for(const f of L.anims) if(seen(f)) f(t,dt);                                                   // 建築裡的小動畫（時鐘、鐘、波紋、蝴蝶、鞦韆…）
+    binLids.forEach((lid,i)=>{ const k=((t/1.8-i)%3+3)%3; lid.rotation.x=k<1?-1.15*Math.sin(Math.PI*k):0; });   // 回收桶輪流掀蓋
+  } else L.animPuffs(0);
+  for(let i=bounces.length-1;i>=0;i--){ const b=bounces[i]; b.t+=dt; const e=Math.sin(Math.PI*Math.min(1,b.t/.7))*Math.exp(-b.t*1.5); b.g.scale.set(1+.04*e,1+.14*e,1+.04*e); if(b.t>.8){ b.g.scale.set(1,1,1); bounces.splice(i,1); } }
+  if(bakeQ.length) bakeSome(8);
+  controls.update();
+  if(shadowDirty||(shadowTick++&1)===0){ renderer.shadowMap.needsUpdate=true; shadowDirty=false; }
+  renderer.render(scene,camera);
+  const W=innerWidth,H2=innerHeight;
+  if(LIFE) LIFE.update(dt,t,v3,W,H2);
+  if(TM.on&&tmSel&&TM.b[tmSel]){ const r=TM.b[tmSel], pos=plotPos(tmSel,r); v3.set(pos.x,TOPH(r.t,r.lv),pos.z).project(camera); tmc.style.left=((v3.x+1)/2*W+62)+'px'; tmc.style.top=((1-v3.y)/2*H2-4)+'px'; }
+  for(const tg of tags){ let vis=!tg.pid||tg.pid===selPid; if(vis){ v3.copy(tg.p).project(camera); vis=v3.z<1; }   /* 11-25：沒選到的名牌不用每格算位置 */
+    if(tg.vis!==vis){ tg.el.style.display=vis?'flex':'none'; tg.vis=vis; } if(vis){ tg.el.style.left=((v3.x+1)/2*W)+'px'; tg.el.style.top=((1-v3.y)/2*H2)+'px'; } }
+});
+window.__ready=true;
+window.__T=THREE; window.__game={scene,groupOf,camera,controls,perf:()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures,meshes:countMeshes(scene),lots:Object.keys(lots).length,baked:{...PERF}}),TM,S,renderCity,curB,flyTo,plotPos,UI:()=>UI,look:(x,z,dx,dy,dz)=>{ fly=null; controls.minDistance=.3; controls.target.set(x,.4,z); camera.position.set(x+dx,dy,z+dz); controls.update(); },cam:(pid,dx,dy,dz,lv)=>{ if(lv){ TM.b[pid].lv=lv; renderCity(); } const p=plotPos(pid,curB()[pid]); fly=null; controls.target.set(p.x,.8,p.z); camera.position.set(p.x+dx,dy,p.z+dz); controls.update(); }};
+</script>
+</body>
+</html>

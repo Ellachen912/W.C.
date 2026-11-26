@@ -1,0 +1,1 @@
+export default "T# Blender MTL File: 'Orange.blend'\n# Material Count: 1\n\nnewmtl Orange\nNs 96.078431\nKa 1.000000 1.000000 1.000000\nKd 0.366020 0.126273 0.037195\nKs 0.500000 0.500000 0.500000\nKe 0.000000 0.000000 0.000000\nNi 1.000000\nd 1.000000\nillum 2\n";
