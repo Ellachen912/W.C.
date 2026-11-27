@@ -170,12 +170,14 @@ export function createVisits(o){
           Object.assign(ex,{act:'chat',talk:spk===me,look:{x:mate.P.obj.position.x,z:mate.P.obj.position.z},face:'smile'});
           if(t%11>9.5&&me===0){ ex.face='laugh'; ex.cover=true; } } }
       if(w.faceForce) ex.face=w.faceForce;
+      if(v.meet){ v.inStay=(v.inStay||0)+dt; if(v.inStay<.8){ ex.act='stand'; v.left=Math.max(v.left,2.4); } }   /* 握手的居民：先轉身面向市長，再伸手 */
       let waitGuest=false;
-      if(v.gname==='mayorGreeting'&&P.mayor){ if(!v.guest&&!v.noGuest&&!o.rain()) recruit(w);
+      if(v.gname==='mayorGreeting'&&P.mayor){ if(!v.guest&&!o.rain()&&(v.recT=(v.recT||0)-dt)<=0) recruit(w);
         const gw=v.guest, gv=gw&&gw.vis&&gw.vis.meet===w?gw.vis:null;
+        if(gw&&!gv&&!v.after){ v.after=1; v.left=Math.max(v.left,3); }   /* 握完手市長再站一下 */
         if(gv){ const gp=gw.P.obj.position; ex.look={x:gp.x,z:gp.z};
           if(gv.phase==='go'){ waitGuest=true; ex.act=restLen(gv,gp)<.6?'stand':'proud'; }
-          else if(gv.phase==='stay'){ waitGuest=true; ex.act='handshake'; ex.face='smile'; } } }
+          else if(gv.phase==='stay'){ waitGuest=true; ex.act=(gv.inStay||0)<1.05?'stand':'handshake'; ex.face='smile'; } } }
       anim(false,ex);
       if(!waitMate&&!waitGuest) v.left-=dt;
       if(v.left<=0||rain&&!v.G.inside){ if(sit&&!v.standing){ v.standing=true; } }
@@ -275,19 +277,19 @@ export function createVisits(o){
   const stats=()=>({files:Object.keys(FILES),visits:active().map(w=>({who:role(w)||w.P.kind,pid:w.vis.pid,g:w.vis.gname,phase:w.vis.phase,act:w.vis.act,y:+w.P.obj.position.y.toFixed(3),vis:w.P.obj.visible,fade:!!w.P._fm})),soc:SOC.map(s=>s.kind),rolls,greets,free:walkers.filter(freeW).length});
   const trace=()=>active().map(w=>({g:w.vis.gname,ph:w.vis.phase,i:w.vis.i,n:w.vis.pts.length,bi:w.vis.bi,p:w.P.obj.position.toArray().map(x=>+x.toFixed(2)),hold:w.hold,wait:w.wait,wave:w.wave,soc:!!w.soc}));
   /* ---------- 市長一個人去市政廳：進辦公室，或在門口廣場跟一個居民握手（家長 11-28 00:02） ---------- */
-  function startSolo(m){ const B=curB(), mp=m.P.obj.position, rain=o.rain(); if(active().length>4||night()>.5) return false;
+  function startSolo(m,want){ const B=curB(), mp=m.P.obj.position, rain=o.rain(); if(active().length>4||night()>.5) return false;
     const pid=Object.keys(B).find(p=>B[p].t==='hall'&&FILES.hall); if(!pid) return false; const h=hexOf(pid); if(!h||Math.hypot(h.x-mp.x,h.z-mp.z)>9) return false;
     const L=lvOf(FILES.hall,B[pid].lv); if(!L) return false;
-    const names=(rain?['mayorOffice']:Math.random()<.5?['mayorGreeting','mayorOffice']:['mayorOffice','mayorGreeting']).filter(n=>L.groups[n]&&countG(pid,n)===0);
-    for(const gn of names){ const v=build(m,pid,gn,L.groups[gn]); if(v){ m.vis=v; m.hold=0; m.wave=0; m.st=null; return gn; } }
+    const names=(want?[want]:rain?['mayorOffice']:Math.random()<.5?['mayorGreeting','mayorOffice']:['mayorOffice','mayorGreeting']).filter(n=>L.groups[n]&&countG(pid,n)===0);
+    for(const gn of names){ const v=build(m,pid,gn,L.groups[gn]); if(v){ m.vis=v; v.recR=want?12:4; m.hold=0; m.wave=0; m.st=null; return gn; } }
     return false; }
   /* 握手：市長站好以後找附近一個大人走過來，站在市長正前方 .23、往市長右手邊偏一點 */
   function recruit(m){ const v=m.vis, st=v.st, G=v.G; if(!st||!st.face) return; const [ax,az]=st.at, [bx,bz]=st.face, l=Math.hypot(bx-ax,bz-az)||1, fx=(bx-ax)/l, fz=(bz-az)/l;
-    const spot=[ax+fx*.3+fz*.1, az+fz*.3-fx*.1];
+    const spot=[ax+fx*.36+fz*.1, az+fz*.36-fx*.1];
     const G2={who:'*',max:1,sec:[3,3.5],door:G.door,in:G.in||[],out:G.out||[],stay:[{at:spot,act:'handshake',face:st.at}]};
-    const mp=m.P.obj.position, list=walkers.filter(w=>!w.vis&&!isVip(w)&&!w.gone&&!w.soc&&!(w.hold>0)&&w.P.obj.visible&&!w.P.kid&&role(w)!=='嬰兒車'&&can(w,'handshake')&&w.P.obj.position.distanceTo(mp)<4)
+    const mp=m.P.obj.position, list=walkers.filter(w=>!w.vis&&!isVip(w)&&!w.gone&&!w.soc&&!(w.hold>0)&&w.P.obj.visible&&!w.P.kid&&role(w)!=='嬰兒車'&&can(w,'handshake')&&w.P.obj.position.distanceTo(mp)<(v.recR||4))
       .sort((a,b)=>a.P.obj.position.distanceTo(mp)-b.P.obj.position.distanceTo(mp));
     for(const w of list){ const vv=build(w,v.pid,'handshake',G2); if(vv){ w.vis=vv; w.hold=0; w.wave=0; w.st=null; vv.meet=m; v.guest=w; return; } }
-    v.noGuest=true; }
+    v.recT=2; }
   return { startSolo, startPair, audit, trace, update, step, social, faceTick, showRoutes, refresh, sendTo, faceTest, chatTest, stats, files:FILES };
 }
