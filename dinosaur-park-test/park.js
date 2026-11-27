@@ -85,65 +85,42 @@ function terrain(lot) {
   L.setRoot(null);
 }
 
-function sculptedJaw(lot,rings,color){
-  const section=[[1,0],[.67,1],[-.67,1],[-1,0],[-.76,-1],[.76,-1]];
-  const points=[],indices=[];
-  for(const [z,width,y,rise,drop] of rings){
-    for(const [x,v] of section) points.push(width*x,y+(v<0?drop:rise)*v,z);
-  }
-  for(let row=0;row<rings.length-1;row++){
-    for(let j=0;j<6;j++){
-      const a=row*6+j,b=row*6+(j+1)%6;
-      indices.push(a,b,b+6,a,b+6,a+6);
-    }
-  }
-  const end=(rings.length-1)*6;
-  for(let j=1;j<5;j++) indices.push(0,j+1,j,end,end+j,end+j+1);
-  const mesh=new THREE.BufferGeometry();
-  mesh.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
-  mesh.setIndex(indices);
-  const faces=mesh.toNonIndexed();
-  mesh.dispose();
-  faces.computeVertexNormals();
-  L.add(new THREE.Mesh(faces,L.mat(color)),lot);
-}
-
-function rexEntrance(lot){
-  const hide='#638874', jaw='#af8d69', gums='#583934', teeth='#fff1d5';
-  // The rear cheeks meet the façade, leaving the gap between jaws as the doorway.
-  sculptedJaw(lot,[
-    [1.34,1.29,2.53,.88,.53],[1.82,1.36,2.81,.67,.45],
-    [2.13,1.15,2.88,.51,.42],[2.53,.94,2.89,.33,.32],
-    [2.98,.85,2.80,.29,.23],[3.18,.70,2.77,.22,.18],
-    [3.25,.48,2.76,.13,.14],
-  ],hide);
-  sculptedJaw(lot,[
-    [1.40,1.21,.33,.23,.15],[1.90,1.25,.29,.16,.14],
-    [2.50,1.08,.23,.11,.10],[2.97,.91,.19,.10,.08],
-    [3.19,.72,.17,.09,.07],[3.27,.46,.17,.06,.06],
-  ],jaw);
-  L.rbox(1.25,.08,1.10,'#ba786b',0,.246,2.47,.035,lot);
+function pterosaur(lot) {
+  const statue=group(lot,'Pteranodon sculpture');
+  statue.position.set(1.53,.072,2.24);
+  statue.rotation.y=-.34;
+  const bronze='#416e6b', highlight='#699690', membrane='#82aba0';
+  L.cyl(.44,.52,.13,'#a98e70',0,0,0,12,statue);
+  L.cyl(.34,.40,.30,L.wallMat('#c4a581',1,.4),0,.13,0,12,statue);
+  L.cyl(.40,.36,.08,'#e1c8a2',0,.43,0,12,statue);
+  branch(statue,[0,.50,0],[0,1.20,-.13],.047,bronze);
+  rock(statue,0,1.26,-.08,.18,.18,.45,bronze);
+  branch(statue,[0,1.27,.08],[0,1.51,.30],.116,bronze);
+  rock(statue,0,1.54,.34,.137,.152,.19,highlight);
+  const triangles=[];
+  function face(a,b,c){triangles.push(...a,...b,...c);}
+  const beakTop=[0,1.58,.40],beakBottom=[0,1.46,.48],beakTip=[0,1.48,.92];
   for(const side of [-1,1]){
-    const x=side;
-    rock(lot,x*1.09,1.36,1.57,.34,1.16,.42,hide);
-    rock(lot,x*1.08,2.56,1.96,.28,.26,.38,'#769782');
-    const eye=rock(lot,x*1.16,2.97,2.15,.16,.18,.24,'#efbd61');
-    eye.rotation.y=x*.64;
-    rock(lot,x*1.24,2.97,2.29,.065,.11,.058,'#252f2a');
-    const brow=rock(lot,x*1.15,3.15,2.12,.27,.13,.35,'#496c5c');
-    brow.rotation.z=-x*.28;
-    rock(lot,x*.53,2.81,3.205,.13,.075,.056,'#304f43');
-    for(const [z,w,y,len] of [[1.96,1.04,2.36,.20],[2.18,.91,2.45,.29],[2.43,.80,2.49,.31],[2.68,.71,2.54,.28],[2.93,.65,2.54,.23],[3.13,.55,2.56,.18]]){
-      rock(lot,x*w,y+.045,z,.17,.084,.15,gums);
-      L.cyl(.08,.011,len,teeth,x*w,y-len,z,5,lot);
-    }
-    for(const [z,w,y,len] of [[1.99,1.02,.35,.22],[2.24,.94,.31,.24],[2.50,.85,.30,.23],[2.74,.77,.28,.20],[2.97,.68,.26,.16],[3.15,.55,.24,.13]]){
-      L.cyl(.011,.073,len,teeth,x*w,y,z,5,lot);
-    }
+    const cheek=[side*.11,1.51,.46];
+    face(beakTop,cheek,beakTip);
+    face(cheek,beakBottom,beakTip);
+    rock(statue,side*.116,1.55,.43,.023,.028,.026,'#293e3a');
+    const shoulder=[side*.12,1.34,.14], elbow=[side*.57,1.51,.23];
+    const wrist=[side*.92,1.61,.06], tip=[side*1.22,1.70,-.46];
+    const flank=[side*.13,1.22,-.36], fold=[side*.53,1.31,-.30];
+    face(shoulder,elbow,fold);face(elbow,wrist,fold);
+    face(wrist,tip,fold);face(shoulder,fold,flank);
+    branch(statue,shoulder,elbow,.042,bronze);
+    branch(statue,elbow,wrist,.032,bronze);
+    branch(statue,wrist,tip,.023,bronze);
   }
-  for(const x of [-.33,-.11,.11,.33]){
-    L.cyl(.069,.010,.15,teeth,x,2.43,3.17,5,lot);
-  }
+  const crest=[0,1.94,-.13];
+  face([-.075,1.55,.24],crest,[0,1.70,.40]);
+  face([.075,1.55,.24],[0,1.70,.40],crest);
+  const wings=new THREE.BufferGeometry();
+  wings.setAttribute('position',new THREE.Float32BufferAttribute(triangles,3));
+  wings.computeVertexNormals();
+  L.add(new THREE.Mesh(wings,L.mat(membrane,{side:THREE.DoubleSide})),statue);
 }
 
 function museum(lot) {
@@ -152,34 +129,45 @@ function museum(lot) {
   trail(lot,[[0,3.61,.47],[0,2.95,.56],[0,1.50,.83]]);
   L.setRoot(lot);
   L.rbox(4.20,.19,3.20,'#b99470',0,.062,-.21,.09,lot);
-  L.rbox(4.04,2.07,3.02,plaster,0,.23,-.22,.16,lot);
+  L.rbox(4.04,2.07,3.02,L.wallMat(plaster,4.04,2.07),0,.23,-.22,.12,lot);
+  L.rbox(4.14,.20,3.13,L.wallMat('#b59578',4.14,.55),0,.23,-.22,.055,lot);
+  L.rbox(4.17,.075,3.14,'#ebcca2',0,.43,-.22,.022,lot);
+  L.rbox(4.11,.085,3.10,'#efd1a8',0,1.92,-.22,.025,lot);
   L.rbox(4.41,.22,3.27,'#5a7163',0,2.22,-.25,.08,lot);
-  L.rbox(3.77,.24,2.69,'#7b8d72',0,2.42,-.43,.11,lot);
-  L.rbox(1.73,1.91,.17,'#503934',0,.265,1.29,.066,lot);
+  L.tiledHip(4.38,3.24,.79,'#678575',0,2.42,-.25,lot);
+  L.rbox(1.22,.095,.125,'#536e61',0,3.16,-.25,.038,lot);
+  L.rbox(1.87,.12,.64,'#ddbf98',0,.25,1.48,.042,lot);
+  L.rbox(1.96,.075,.78,'#edcfaa',0,.15,1.58,.031,lot);
+  L.rbox(1.95,.14,.32,'#b79069',0,1.89,1.43,.035,lot);
+  L.tiledHip(2.06,.55,.26,'#678575',0,2.02,1.49,lot);
+  L.rbox(1.73,1.91,.17,'#4b5f57',0,.265,1.29,.066,lot);
   for(const x of [-.36,.36]){
-    L.rbox(.64,1.49,.09,'#613e36',x,.30,1.40,.043,lot);
+    L.rbox(.64,1.49,.09,'#66897e',x,.30,1.40,.043,lot);
     L.rbox(.035,.22,.05,'#edcc8c',x*.42,.95,1.462,.014,lot);
   }
   for(const side of [-1,1]){
     const x=side*1.47;
+    L.rbox(.13,1.51,.16,'#ebcca2',side*.94,.36,1.33,.035,lot);
+    L.rbox(.12,1.48,.12,'#eac99f',side*1.87,.50,1.30,.026,lot);
     L.rbox(.69,1.12,.09,trim,x,.63,1.306,.044,lot);
     L.rbox(.58,.99,.085,glass,x,.699,1.36,.04,lot);
     L.rbox(.585,.042,.10,'#ead3a6',x,1.235,1.41,.016,lot);
+    L.rbox(.040,.99,.041,'#ead3a6',x,.70,1.415,.012,lot);
+    L.rbox(.78,.089,.25,'#eccb9f',x,.63,1.37,.026,lot);
     for(const z of [-1.20,-.23,.74]){
       L.rbox(.09,1.13,.68,trim,side*2.02,.65,z,.044,lot);
       L.rbox(.085,1.00,.56,glass,side*2.06,.72,z,.04,lot);
     }
     L.tree(side*2.46,-.48,.65,'#78a870');
-    rock(lot,side*1.64,.18,2.33,.25,.14,.19,'#98b67c');
+
   }
-  rexEntrance(lot);
-  L.rbox(.92,.39,.09,'#8c6752',1.60,.29,1.44,.035,lot);
-  L.textPlate('恐龍博物館',.82,.25,'#ffedc7','#574b3f',1.60,.493,1.498);
+  pterosaur(lot);
+  L.textPlate('恐龍博物館',1.46,.235,'#ffedc7','#574b3f',0,2.325,1.415);
   L.setRoot(null);
 }
 
 async function mount(scene,name,x,z,yaw,length) {
-  const {scene:model,animations}=await loader.loadAsync(new URL('./models/'+name+'.glb?v=4',import.meta.url).href);
+  const {scene:model,animations}=await loader.loadAsync(new URL('./models/'+name+'.glb?v=5',import.meta.url).href);
   const actor=group(scene,name);
   model.updateMatrixWorld(true);
   const bounds=new THREE.Box3().setFromObject(model,true);
