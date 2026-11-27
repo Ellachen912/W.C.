@@ -36,13 +36,19 @@ export function createVisits(o){
   const lvOf=(file,lv)=>{ let best=null; for(const k of Object.keys(file.lv).map(Number).sort((a,b)=>a-b)) if(k<=lv) best=file.lv[k]; return best; };
   const toW=(g,x,z)=>{ const f=g.userData.fit; return g.localToWorld(V(x,0,f?f[0]+f[1]*z:z)); };
   /* 從上一點高度＋0.3 往下量（最多量到 0.6 深）；沒碰到就是人行道高度 */
-  function probe(g,p,prevY){ const top=prevY+.3; ray.set(V(p.x,top,p.z),DOWN); ray.far=top+.3;
+  function probe(g,p,prevY,climb=.3){ const top=prevY+climb; ray.set(V(p.x,top,p.z),DOWN); ray.far=top+.3;   /* climb：往上最多爬多高（坐的位置只量椅子下面的地板） */
     const h=ray.intersectObject(g,true).find(i=>i.object.isMesh&&visible(i.object)&&!i.object.userData.noRay);
     return h?Math.max(h.point.y+.01,SW_Y):SW_Y; }
-  function chain(g,locals,y0){ let y=y0; return locals.map(([x,z])=>{ const w=toW(g,x,z); y=probe(g,w,y); w.y=y; return w; }); }
+  function chain(g,locals,y0,low){ let y=y0; return locals.map(([x,z],i)=>{ const w=toW(g,x,z); y=probe(g,w,y,low&&i===locals.length-1?.05:.3); w.y=y; return w; }); }
   /* 門口最近的人行道點 */
-  function nodeNear(p){ const N=WALK.nodes; let best=-1, bd=1e9; for(let i=0;i<N.length;i++){ const n=N[i]; if(!n.nb.length||n.dead) continue; const d=Math.hypot(n.x-p.x,n.z-p.z); if(d<bd){ bd=d; best=i; } } return best; }
+  function nodeNear(p,pid){ const N=WALK.nodes, h=pid&&hexOf(pid), own=h&&h.walk&&h.walk.filter(i=>N[i].nb.length&&!N[i].dead); if(own&&own.length){ let best=-1, bd=1e9; for(const i of own){ const d=Math.hypot(N[i].x-p.x,N[i].z-p.z); if(d<bd){ bd=d; best=i; } } return best; }   /* 先找這棟自己那一格的人行道 */
+    let best=-1, bd=1e9; for(let i=0;i<N.length;i++){ const n=N[i]; if(!n.nb.length||n.dead) continue; const d=Math.hypot(n.x-p.x,n.z-p.z); if(d<bd){ bd=d; best=i; } } return best; }
 
+  /* 人行道上正對門口的那一點：從最近的路口沿著人行道走到這裡，再轉進門（不要從路口斜斜穿過建地） */
+  function curbPoint(node,door){ const N=WALK.nodes, A=N[node]; let best=null, bd=1e9;
+    for(const e of A.nb){ if(e.cross) continue; const B=N[e.to], dx=B.x-A.x, dz=B.z-A.z, L2=dx*dx+dz*dz; if(!L2) continue;
+      const t=((door.x-A.x)*dx+(door.z-A.z)*dz)/L2; if(t<=.02||t>=.98) continue; const px=A.x+dx*t, pz=A.z+dz*t, d=Math.hypot(door.x-px,door.z-pz); if(d<bd){ bd=d; best=V(px,SW_Y,pz); } }
+    return best&&bd<Math.hypot(door.x-A.x,door.z-A.z)?best:null; }
   /* ---------- 這個人是誰 ---------- */
   const role=w=>{ const d=w.P.d; return d&&d.cur&&d.cur!=='無'?d.cur:null; };
   const names=w=>{ const P=w.P, n=['*']; const r=role(w); if(r) n.push(r); if(P.kind) n.push(P.kind); n.push(P.kid?'小孩':'大人'); if(P.mayor) n.push('市長'); if(P.avery) n.push('Avery'); return n; };
@@ -69,14 +75,14 @@ export function createVisits(o){
     let act=st?st.act||'stand':null, at=st?st.at:null;
     if(st&&!can(w,act)){ if(act==='sit'&&st.stand){ act='stand'; at=st.stand; } else if(act==='look'||act==='stand'){ act=can(w,'look')?act:'stand'; } else return null; }
     const loc=[G.door,...(G.in||[]),...(st?(act==='sit'||at===st.at?(st.go||[]):[]):[]),...(at?[at]:[])];
-    const inW=chain(g,loc,SW_Y), last=inW[inW.length-1];
+    const inW=chain(g,loc,SW_Y,act==='sit'), last=inW[inW.length-1];
     const outW=chain(g,[...(G.out||[]),G.door],last.y);
-    const node=nodeNear(inW[0]); if(node<0) return null; const N=WALK.nodes[node], nodeP=V(N.x,SW_Y,N.z);
+    const node=nodeNear(inW[0],pid); if(node<0) return null; const N=WALK.nodes[node], nodeP=V(N.x,SW_Y,N.z), curb=curbPoint(node,inW[0]);
     const path=walkPath(w.P.obj.position,node); if(!path){ w._why='nopath'; return null; }
     const pos=w.P.obj.position.clone();
     return { pid, g, gname, G, st, si, act, lv:curB()[pid].lv,
       faceW:st&&st.face?toW(g,st.face[0],st.face[1]):null, seatY:st&&st.seat!=null?g.localToWorld(V(0,st.seat,0)).y:null,
-      pts:[pos,...path,nodeP,...inW], i:1, bi:1+path.length, outW:[...outW,nodeP], node, nodeP, phase:'go', t:0,
+      pts:[pos,...path,nodeP,...(curb?[curb]:[]),...inW], i:1, bi:1+path.length, outW:[...outW,...(curb?[curb]:[]),nodeP], node, nodeP, phase:'go', t:0,
       sec:st&&st.sec||G.sec||(G.inside?[8,20]:[8,15]) }; }
   function start(w,pid,force){ w._why='?'; const B=curB(), r=B[pid]; if(!r) return false; const file=FILES[r.t]; if(!file) return false;
     const L=lvOf(file,r.lv); if(!L) return false; const rain=o.rain();
@@ -204,12 +210,12 @@ export function createVisits(o){
     for(const pid in B){ const file=FILES[B[pid].t], g=lotGroup(pid); if(!file||!g) continue; g.updateMatrixWorld(true); const L=lvOf(file,B[pid].lv); if(!L) continue;
       for(const [gn,G] of Object.entries(L.groups)){ const c=new THREE.Color(COL[ci++%COL.length]), m=new THREE.MeshBasicMaterial({color:c,depthTest:false}), lm=new THREE.LineBasicMaterial({color:c,depthTest:false});
         const lines=[]; const inL=[G.door,...(G.in||[])], inW=chain(g,inL,SW_Y); lines.push(inW);
-        for(const s of G.stay||[]){ const a=chain(g,[...(s.go||[]),s.at],inW[inW.length-1].y); lines.push([inW[inW.length-1],...a]); if(s.stand){ const b=chain(g,[s.stand],inW[inW.length-1].y); lines.push([inW[inW.length-1],...b]); } }
+        for(const s of G.stay||[]){ const a=chain(g,[...(s.go||[]),s.at],inW[inW.length-1].y,s.act==='sit'); lines.push([inW[inW.length-1],...a]); if(s.stand){ const b=chain(g,[s.stand],inW[inW.length-1].y); lines.push([inW[inW.length-1],...b]); } }
         const last=inW[inW.length-1]; lines.push(chain(g,[...(G.out||[]),G.door],last.y).reduce((acc,p)=>(acc.push(p),acc),[last]));
         for(const pts of lines){ const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(p=>p.clone().setY(p.y+.01))),lm); ln.renderOrder=999; dbg.add(ln);
           for(const p of pts){ const s=new THREE.Mesh(ball,m); s.position.copy(p); s.renderOrder=999; dbg.add(s); } }
         const d=new THREE.Mesh(big,m); d.position.copy(inW[0]); d.renderOrder=999; dbg.add(d);
-        const node=nodeNear(inW[0]); if(node>=0){ const N=WALK.nodes[node]; const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(N.x,SW_Y+.01,N.z),inW[0]]),lm); dbg.add(ln); } } }
+        const node=nodeNear(inW[0],pid); if(node>=0){ const N=WALK.nodes[node], c=curbPoint(node,inW[0]); const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(N.x,SW_Y+.01,N.z),...(c?[c.clone().setY(SW_Y+.01)]:[]),inW[0]]),lm); dbg.add(ln); } } }
     root.add(dbg); }
   let routesOn=false;
   function showRoutes(on){ routesOn=on==null?!routesOn:!!on; dbgVer=''; drawRoutes(routesOn); return routesOn; }
@@ -226,7 +232,21 @@ export function createVisits(o){
   /* 聊天：附近的人馬上兩兩聊天 */
   function chatTest(){ const R=walkers.filter(freeW); let n=0; while(R.length>1&&n<4){ const a=R.shift(); R.sort((x,y)=>x.P.obj.position.distanceTo(a.P.obj.position)-y.P.obj.position.distanceTo(a.P.obj.position)); const b=R.shift();
       a.face=b.P.obj.position; b.face=a.P.obj.position; startChat(a,b,a.P.kid&&b.P.kid?'whisper':'chat'); n++; } return n; }
+  /* 覆核用：每棟每組的路線點（世界座標＋量到的高度），以及離格子中心的距離 */
+  function audit(){ const B=curB(), out=[];
+    for(const pid in B){ const file=FILES[B[pid].t], g=lotGroup(pid); if(!file||!g) continue; g.updateMatrixWorld(true); const L=lvOf(file,B[pid].lv); if(!L) continue; const h=hexOf(pid);
+      for(const [gn,G] of Object.entries(L.groups)){ const lines=[]; const inW=chain(g,[G.door,...(G.in||[])],SW_Y); lines.push(['in',inW]);
+        for(const [i,st] of (G.stay||[]).entries()){ lines.push(['stay'+i,chain(g,[...(st.go||[]),st.at],inW[inW.length-1].y,st.act==='sit')]); if(st.stand) lines.push(['stand'+i,chain(g,[st.stand],inW[inW.length-1].y)]); }
+        lines.push(['out',chain(g,[...(G.out||[]),G.door],inW[inW.length-1].y)]);
+        const node=nodeNear(inW[0],pid), N=node>=0?WALK.nodes[node]:null, c=node>=0?curbPoint(node,inW[0]):null;
+        /* 穿東西檢查：每一段在腳踝、腰的高度水平射一條線，碰到建築的東西就記下來（進門的最後一段不算） */
+        const hits=[]; for(const [k,pts] of lines){ for(let j=1;j<pts.length;j++){ if(k==='in'&&G.inside&&j===pts.length-1) continue; const a=pts[j-1], bb=pts[j], d=Math.hypot(bb.x-a.x,bb.z-a.z); if(d<.02) continue;
+            for(const hh of [.12,.3]){ const o=V(a.x,Math.max(a.y,bb.y)+hh,a.z), dir=V(bb.x-a.x,0,bb.z-a.z).normalize(); ray.set(o,dir); ray.far=d; const hit=ray.intersectObject(g,true).find(i=>i.object.isMesh&&visible(i.object));
+              if(hit){ hits.push(k+'#'+j+'@'+hh+':'+(hit.object.name||hit.object.geometry.type)+':'+hit.distance.toFixed(2)+'/'+d.toFixed(2)); break; } } } }
+        out.push({pid,t:B[pid].t,lv:B[pid].lv,g:gn,hits,doorToWalk:N?+Math.hypot((c||N).x-inW[0].x,(c||N).z-inW[0].z).toFixed(2):-1,
+          lines:lines.map(([k,pts])=>[k,pts.map(p=>[+p.x.toFixed(2),+p.y.toFixed(3),+p.z.toFixed(2),h?+Math.hypot(p.x-h.x,p.z-h.z).toFixed(2):0])])}); } }
+    return out; }
   const stats=()=>({files:Object.keys(FILES),visits:active().map(w=>({who:role(w)||w.P.kind,pid:w.vis.pid,g:w.vis.gname,phase:w.vis.phase,act:w.vis.act,y:+w.P.obj.position.y.toFixed(3),vis:w.P.obj.visible,fade:!!w.P._fm})),soc:SOC.map(s=>s.kind),rolls,greets,free:walkers.filter(freeW).length});
   const trace=()=>active().map(w=>({g:w.vis.gname,ph:w.vis.phase,i:w.vis.i,n:w.vis.pts.length,bi:w.vis.bi,p:w.P.obj.position.toArray().map(x=>+x.toFixed(2)),hold:w.hold,wait:w.wait,wave:w.wave,soc:!!w.soc}));
-  return { trace, update, step, social, faceTick, showRoutes, refresh, sendTo, faceTest, chatTest, stats, files:FILES };
+  return { audit, trace, update, step, social, faceTick, showRoutes, refresh, sendTo, faceTest, chatTest, stats, files:FILES };
 }
