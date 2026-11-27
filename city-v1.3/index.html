@@ -230,7 +230,7 @@ body:has(.tree) .pan{display:none}
   <button class="big main" id="bBuild" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/></svg>建造</button>
   <button class="big" id="bHome" type="button">看全城</button>
 </nav>
-<div class="hint">一指拖曳旋轉・兩指縮放・按住不動再拖可平移・點建築看詳細・點空地蓋房子</div><div id="rotRing">✥</div>
+<div class="hint">一指拖曳旋轉・兩指縮放・按住不動再拖可平移・點建築看詳細・按「建造」蓋房子</div><div id="rotRing">✥</div>
 <div class="err" id="err">這台裝置打不開 3D 畫面，請用 Safari 或 Chrome 再試一次。</div>
 <script type="module">
 import * as THREE from 'three';
@@ -610,7 +610,10 @@ function setHi(pids,dim){ hiPids=pids||[]; hiDim=!!dim; for(const m of hiMeshes)
 function tapBuilding(pid){ selPid=pid; setHi([]); const B=curB(); if(B[pid].t==='observatory') astroTap();   /* 11-19 18:58：點天文台，八大行星轉起來 */
   if(LIFE) LIFE.react(B[pid].t,groupOf[pid]); flyTo(plotPos(pid,B[pid]),B[pid].t); if(TM.on) tmPick(pid); else UI.openCard(pid); }
 function tapPlot(pid){ if(PLOTS[pid]&&PLOTS[pid].zone==='none'&&!TM.on){ setHi([]); UI.toast&&UI.toast('這塊地還沒決定要蓋什麼喔'); return; }   /* 待定的地（家長 11-20 23:37） */
-  selPid=null; const pend=hiPids.includes(pid)?UI.pendingType():null; setHi([pid]); flyTo(plotPos(pid)); if(TM.on) UI.testPlace(pid); else UI.openPlot(pid,pend); }
+  selPid=null; const pend=hiPids.includes(pid)?UI.pendingType():null;
+  /* 家長 11-27 20:31：點土地不再直接跳出可以蓋什麼；要先按「建造」選建築，再點發亮的土地（測試模式照舊） */
+  if(!TM.on&&!pend) return;
+  setHi([pid]); flyTo(plotPos(pid)); if(TM.on) UI.testPlace(pid); else UI.openPlot(pid,pend); }
 
 /* ---------- 拍照（升級前後對照）、彈一下 ---------- */
 const cam2=new THREE.PerspectiveCamera(32,1,1,320);
@@ -651,23 +654,31 @@ const touchIds=new Set(); let rot=null, lpTimer=0; const ring=document.getElemen
 let multiGesture=false;
 const endRot=()=>{ clearTimeout(lpTimer); lpTimer=0; if(rot){ rot=null; controls.enabled=!follow; ring.classList.remove('on'); } };
 canvas.addEventListener('pointerdown',e=>{ touchIds.add(e.pointerId); clearTimeout(lpTimer);
-  if(touchIds.size===1){ multiGesture=false; pd={x:e.clientX,y:e.clientY,t:performance.now()};
-    lpTimer=setTimeout(()=>{ lpTimer=0; if(!pd||touchIds.size!==1) return;
+  if(touchIds.size===1){ multiGesture=false; pd={x:e.clientX,y:e.clientY,t:e.timeStamp};
+    if(follow) followDrag={x:e.clientX,y:e.clientY};   /* 11-27：跟隨模式拖曳＝轉鏡頭 */
+    lpTimer=setTimeout(()=>{ lpTimer=0; if(!pd||touchIds.size!==1||follow) return;   /* 跟隨模式不平移 */
       stopFollow(); fly=null; rot={x:pd.x,y:pd.y}; pd.rot=true; controls.enabled=false; ring.style.left=pd.x+'px'; ring.style.top=pd.y+'px'; ring.classList.add('on'); },450);
   }else{multiGesture=true;pd=null;endRot();} });
 canvas.addEventListener('pointermove',e=>{
-  if(pd&&!rot&&Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>8){clearTimeout(lpTimer);lpTimer=0;if(follow&&!multiGesture)stopFollow();}
+  if(pd&&!rot&&Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>8){clearTimeout(lpTimer);lpTimer=0;}
+  /* 家長 11-27 20:31：跟隨模式也可以轉鏡頭，轉法跟平常一樣（手指一指拖曳；滑鼠右鍵拖曳），拖曳不會離開跟隨 */
+  if(follow&&followDrag&&!followPinch&&!multiGesture&&touchIds.size===1&&(e.pointerType==='touch'||(e.buttons&2))){ const dx=e.clientX-followDrag.x, dy=e.clientY-followDrag.y; followDrag={x:e.clientX,y:e.clientY};
+    const H=Math.max(1,canvas.clientHeight); follow.yaw-=2*Math.PI*dx/H*controls.rotateSpeed; follow.elev=THREE.MathUtils.clamp(follow.elev+2*Math.PI*dy/H*controls.rotateSpeed,3*Math.PI/180,60*Math.PI/180); return; }
   if(!rot||multiGesture) return; const dx=e.clientX-rot.x, dy=e.clientY-rot.y; rot.x=e.clientX; rot.y=e.clientY; ring.style.left=e.clientX+'px'; ring.style.top=e.clientY+'px';
   const fwd=controls.target.clone().sub(camera.position);fwd.y=0;fwd.normalize();const right=new THREE.Vector3(-fwd.z,0,fwd.x);
   const scale=2*camera.position.distanceTo(controls.target)*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/Math.max(1,canvas.clientHeight);
   const next=controls.target.clone().addScaledVector(right,-dx*scale).addScaledVector(fwd,dy*scale);
   next.x=THREE.MathUtils.clamp(next.x,-44,44);next.z=THREE.MathUtils.clamp(next.z,-32,36);
   camera.position.add(next.clone().sub(controls.target));controls.target.copy(next);camera.lookAt(controls.target); });
-for(const ev of ['pointerup','pointercancel','pointerleave']) canvas.addEventListener(ev,e=>{touchIds.delete(e.pointerId);if(ev!=='pointerup')pd=null;if(!touchIds.size||ev!=='pointerup')endRot();});
+for(const ev of ['pointerup','pointercancel','pointerleave']) canvas.addEventListener(ev,e=>{touchIds.delete(e.pointerId);if(!touchIds.size)followDrag=null;if(ev!=='pointerup')pd=null;if(!touchIds.size||ev!=='pointerup')endRot();});
 canvas.addEventListener('pointerup',e=>{
-  if(followPinch||multiGesture){pd=null;return;} if(!pd) return; const moved=Math.hypot(e.clientX-pd.x,e.clientY-pd.y), dt=performance.now()-pd.t, wasRot=pd.rot; pd=null; if(wasRot||moved>6||dt>500) return;
+  if(followPinch||multiGesture){pd=null;return;} if(!pd) return; const moved=Math.hypot(e.clientX-pd.x,e.clientY-pd.y), dt=e.timeStamp-pd.t, wasRot=pd.rot; pd=null; if(wasRot||moved>6||dt>500) return;
   ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1); ray.setFromCamera(ndc,camera);
-  { const per=LIFE&&LIFE.pick(ray); if(per){ followPerson(per); return; } }   // 點到路上的人：說一句話，鏡頭拉近跟著他走（家長 11-19 17:18）
+  /* 家長 11-27 20:31：跟隨模式點兩下才離開；點一下別的地方不離開（點到人照樣換人跟） */
+  if(follow){ const now=e.timeStamp, lt=lastTap;   /* 用事件發生的時間，畫面忙的時候也算得準 */ lastTap={t:now,x:e.clientX,y:e.clientY};
+    if(lt&&now-lt.t<400&&Math.hypot(e.clientX-lt.x,e.clientY-lt.y)<40){ lastTap=null; stopFollow(); UI.toast&&UI.toast('離開跟隨'); return; }
+    const per=LIFE&&LIFE.pick(ray); if(per&&per!==follow.p) followPerson(per); return; }
+  { const per=LIFE&&LIFE.pick(ray); if(per){ lastTap=null; followPerson(per); return; } }   // 點到路上的人：說一句話，鏡頭拉近跟著他走（家長 11-19 17:18）
   stopFollow();
   const hit=ray.intersectObjects(lotGroups,true)[0];
   if(hit){ let o=hit.object; while(o&&!lotGroups.includes(o)) o=o.parent; const pid=o&&o.userData.pid;
@@ -686,7 +697,7 @@ function flyTo(pos,t){ stopFollow();
   fly={t0:controls.target.clone(),p0:camera.position.clone(),t1:tg,p1:p,k:0};
 }
 /* ---------- 點到人物：鏡頭拉近、跟著他走（家長 11-19 17:18）；點別的地方、按「看全城」或箭頭就停 ---------- */
-let follow=null;
+let follow=null, followDrag=null, lastTap=null;
 const followTouches=new Map(); let followPinch=false;
 function zoomFollow(factor){if(follow) follow.distance=THREE.MathUtils.clamp(follow.distance*factor,1.2,12);}
 canvas.addEventListener('wheel',e=>{if(follow){e.preventDefault();zoomFollow(Math.exp(e.deltaY*(e.deltaMode===1?.04:.002)));}},{passive:false});
@@ -697,17 +708,17 @@ for(const ev of ['pointerup','pointercancel','pointerleave'])canvas.addEventList
 const FOLLOW_AZIMUTH=Math.PI/4, FOLLOW_ELEVATION=8*Math.PI/180, FOLLOW_DISTANCE=3.6;   /* 家長 11-27 12:23：跟著小人物的鏡頭低一點、接近平視（原本 25 度） */
 const followTarget=new THREE.Vector3(), followOffset=new THREE.Vector3(), followWant=new THREE.Vector3();
 function followPerson(p){ fly=null; selPid=null; setHi([]);
-  if(!follow) follow={p,enabled:controls.enabled,distance:FOLLOW_DISTANCE}; else follow.p=p;
+  if(!follow) follow={p,enabled:controls.enabled,distance:FOLLOW_DISTANCE,yaw:0,elev:FOLLOW_ELEVATION}; else follow.p=p;
   controls.enabled=false; controls.minDistance=.3; controls.maxPolarAngle=1.46;
-  if(UI&&UI.toast) UI.toast('右前方跟隨中，點別處離開');
+  if(UI&&UI.toast) UI.toast('跟隨中：拖曳可以轉鏡頭，點兩下離開');
 }
 function stopFollow(){ if(follow){ controls.enabled=follow.enabled; follow=null; controls.minDistance=1.2; controls.maxPolarAngle=1.25; } }
 function followTick(dt){
   if(!follow) return false;
   const o=follow.p.obj; if(!o.parent){ stopFollow(); return false; }
   o.getWorldPosition(followTarget); followTarget.y+=.62;
-  const horizontal=follow.distance*Math.cos(FOLLOW_ELEVATION);
-  followOffset.set(-horizontal*Math.sin(FOLLOW_AZIMUTH),follow.distance*Math.sin(FOLLOW_ELEVATION),horizontal*Math.cos(FOLLOW_AZIMUTH));
+  const el=follow.elev, az=FOLLOW_AZIMUTH+follow.yaw, horizontal=follow.distance*Math.cos(el);   /* yaw、elev：拖曳轉出來的角度 */
+  followOffset.set(-horizontal*Math.sin(az),follow.distance*Math.sin(el),horizontal*Math.cos(az));
   followOffset.applyAxisAngle(THREE.Object3D.DEFAULT_UP,o.rotation.y);
   followWant.copy(followTarget).add(followOffset);
   const k=1-Math.exp(-dt*6);
@@ -739,7 +750,7 @@ if(previewAquarium){
   controls.target.set(pos.x,2,pos.z); camera.position.set(pos.x+4,6.5,pos.z+10.8); controls.update();
 }
 renderCity();
-let LIFE=null; window.__life=()=>LIFE; if(new URLSearchParams(location.search).get('dev')==='1') window.__wc={camera,controls,groupOf,plotPos,TM,renderCity};   /* 11-27：測試用（網址加 ?dev=1 才有） */ try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
+let LIFE=null; window.__life=()=>LIFE; if(new URLSearchParams(location.search).get('dev')==='1') window.__wc={camera,controls,groupOf,plotPos,TM,renderCity,get follow(){ return !!follow; }};   /* 11-27：測試用（網址加 ?dev=1 才有） */ try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
 
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clk=new THREE.Clock(); const v3=new THREE.Vector3();
