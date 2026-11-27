@@ -15,11 +15,21 @@ try {
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#e3f6fd');
-  scene.add(new THREE.HemisphereLight('#ffffff', '#d6c5a7', 1.85));
-  const sun = new THREE.DirectionalLight('#fff6e5', 2.1);
-  sun.position.set(-8, 12, 6);
+  scene.add(new THREE.HemisphereLight('#dff4ff', '#8fb070', 1.5));
+  const sun = new THREE.DirectionalLight('#fff1d6', 2.6);
+  sun.position.set(-8, 17, 11);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 1, far: 40 });
+  sun.shadow.bias = -.00035;
+  sun.shadow.normalBias = .012;
   scene.add(sun);
 
   const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, .05, 100);
@@ -85,7 +95,15 @@ try {
     console.warn('Mobile model failed; loading the standard GLB.', error);
     gltf = await loader.loadAsync('./park.glb');
   }
+  gltf.scene.traverse(object => {
+    if (object.isMesh) {
+      object.castShadow = true;
+      object.receiveShadow = true;
+    }
+  });
   scene.add(gltf.scene);
+  renderer.shadowMap.needsUpdate = true;
+  draw();
   draw();
   status.hidden = true;
   stage.dataset.state = 'ready';
