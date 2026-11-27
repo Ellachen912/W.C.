@@ -230,12 +230,14 @@ export function initLife(ctx){
   const VIS=createVisits({ curB, lotGroup:pid=>ctx.lotGroup&&ctx.lotGroup(pid), WALK, walkPath, walkers, hexOf, SW_Y, root,
     isVip:w=>w===mayor||w===avery, night:()=>night(), rain:()=>W.kind==='rain', vipDone:w=>pairDone(w) });
   /* ---------- 11-27 家長 23:11：市長和 Avery 一起去（冰淇淋店、公園、廟、市長的家…）、在路上停下來聊天或跳舞 ---------- */
-  let tripT=25+Math.random()*20, duo=null, duoT=40+Math.random()*20, duoForce=null;
+  let soloT=30+Math.random()*30, tripT=25+Math.random()*20, duo=null, duoT=40+Math.random()*20, duoForce=null;
   function joinMayor(){ const ap=avery.P.obj.position, mp=mayor.P.obj.position; avery.mode='follow'; avery.modeT=25+Math.random()*15; avery.anchor=()=>mayor.P.obj.position; avery.rad=.3;
     mayor.trail=[{x:ap.x,y:ap.y,z:ap.z,r:0},{x:mp.x,y:mp.y,z:mp.z,r:0}]; }
   function pairDone(w){ if(w===avery){ if(mayor.vis) avery.mode='wait'; else joinMayor(); } else if(w===mayor&&avery.mode==='wait') joinMayor(); }
   function startTrip(pid){ if(!mayor||!avery||VISIT||duo||mayor.vis||avery.vis) return false; if(!pid&&avery.mode!=='follow') return false;
     const g=VIS.startPair(mayor,avery,pid); if(g){ avery.mode='trip'; avery.modeT=1e9; } return g; }
+  /* Avery 不在身邊時：市長偶爾自己去市政廳辦公、在門口跟居民握手 */
+  function soloTick(dt){ if(VISIT||duo||mayor.vis||avery.mode==='follow'||avery.mode==='trip'||avery.mode==='wait') return; soloT-=dt; if(soloT>0) return; soloT=50+Math.random()*30; VIS.startSolo(mayor); }
   function tripTick(dt){ if(VISIT||duo||mayor.vis||avery.vis||avery.mode!=='follow') return; tripT-=dt; if(tripT>0) return; tripT=45+Math.random()*30; startTrip(); }
   function duoTick(dt,rain){
     if(!duo){ if(VISIT||mayor.vis||avery.vis||avery.mode!=='follow'||rain||mayor.wave>0||(mayor.edge&&mayor.edge.cross)) return; duoT-=dt; if(duoT>0) return; duoT=40+Math.random()*20;
@@ -476,12 +478,12 @@ export function initLife(ctx){
     syncLive(); syncZebra(); syncPeople(dt); const raining=W.kind==='rain';
     VIS.update(dt); VIS.social(dt,raining,farView); VIS.faceTick(dt); VIS.refresh(ver());
     for(const w of walkers){ if(w.vis){ VIS.step(w,dt,raining); continue; } if(w===avery&&(w.mode==='follow'||w.mode==='visit')) continue; if(w===avery&&w.mode==='wait'){ w.P.anim(dt,{walk:false,ph:w.ph,wave:false,rain:raining}); continue; } if(w===mayor&&VISIT) continue; w.update(dt,raining); }
-    if(mayor&&avery){ visitTick(dt); if(!paused){ tripTick(dt); duoTick(dt,raining); } }
-    if(mayor){ const mp=mayor.P.obj.position, tr=mayor.trail, last=tr[tr.length-1]; if(!last||Math.hypot(mp.x-last.x,mp.z-last.z)>.02){ tr.push({x:mp.x,y:mp.y,z:mp.z,r:mayor.P.obj.rotation.y}); if(tr.length>160) tr.shift(); }
+    if(mayor&&avery){ visitTick(dt); if(!paused){ tripTick(dt); soloTick(dt); duoTick(dt,raining); } }
+    if(mayor){ const mp=mayor.P.obj.position, tr=mayor.trail, last=tr[tr.length-1]; if(!mayor.vis&&(!last||Math.hypot(mp.x-last.x,mp.z-last.z)>.02)){ tr.push({x:mp.x,y:mp.y,z:mp.z,r:mayor.P.obj.rotation.y}); if(tr.length>160) tr.shift(); }
       for(const w of walkers){ if(w===mayor||w===avery||w.waveCD>0||w.wave>0||w.vis||w.soc) continue; const p=w.P.obj.position; if(!VISIT&&!mayor.vis&&Math.hypot(p.x-mp.x,p.z-mp.z)<.9){ w.wave=1.6; w.waveCD=25+Math.random()*20; w.face=mp.clone(); w.faceV='laugh'; w.faceT=1.6; if(mayor.wave<=0){ mayor.wave=1.2; mayor.face=p.clone(); } } } }   // 市長經過，居民揮手、市長也揮手
     if(avery&&mayor){ avery.modeT-=dt; const ap=avery.P.obj.position, mp=mayor.P.obj.position;                         // Avery：平常在市長的家附近；有時候走去找市長，跟在旁邊一起走
       if(avery.mode==='home'&&avery.modeT<0){ avery.mode='seek'; avery.anchor=()=>mayor.P.obj.position; avery.rad=.3; avery.modeT=40; }
-      else if(avery.mode==='seek'&&(Math.hypot(ap.x-mp.x,ap.z-mp.z)<1.0||avery.modeT<0)){ avery.mode='follow'; avery.modeT=25+Math.random()*20; }
+      else if(avery.mode==='seek'&&!mayor.vis&&(Math.hypot(ap.x-mp.x,ap.z-mp.z)<1.0||avery.modeT<0)){ avery.mode='follow'; avery.modeT=25+Math.random()*20; }
       else if(avery.mode==='follow'&&duo) averyDuo(dt,raining);
       else if(avery.mode==='follow'){ /* 家長 11-20 23:12：跟市長散步時距離再拉開（.42→.8），而且走在馬路那一側，不貼著建築 */
         // Interpolate the trail by distance, then approach it continuously.
@@ -530,5 +532,5 @@ export function initLife(ctx){
       if(bubble.sx==null){ bubble.sx=tx; bubble.sy=ty; } else { const k=Math.min(1,dt*6); bubble.sx+=(tx-bubble.sx)*k; bubble.sy+=(ty-bubble.sy)*k; }
       el.style.left=Math.round(bubble.sx)+'px'; el.style.top=Math.round(bubble.sy)+'px'; } }
   }
-  return { visits:VIS, visit:k=>startVisit(k), trip:pid=>startTrip(pid), duo:k=>{ duoT=0; duoForce=k||null; return true; }, cheer, court:{COURT,CS}, lineup, stats:()=>({ready,people:people.length,movers:movers.length,roles:walkers.map(w=>w.P.mayor?'市長':w.P.avery?'Avery':(w.P.kind+(w.P.d&&w.P.d.cur!=='無'?'/'+w.P.d.cur:''))),avery:avery&&avery.mode,duo:duo&&duo.kind,visit:VISIT&&{kind:VISIT.kind,phase:VISIT.phase,rest:+(VISIT.rest||0).toFixed(1)},pos:people.map(p=>p.obj.position.toArray().map(x=>+x.toFixed(1))),pp:people.slice(0,2).map(p=>[p.obj.position.x,p.obj.position.y,p.obj.position.z]),mw:mayor&&{a:mayor.a,b:mayor.b,t:mayor.t,wait:mayor.wait,wave:mayor.wave,cheer:mayor.cheer}}), update, pick, react, boostOf, setWeather, setNight:v=>{ T.force=v; lastSky=''; }, get weather(){ return W.kind; } };
+  return { visits:VIS, visit:k=>startVisit(k), trip:pid=>startTrip(pid), solo:()=>(!mayor||mayor.vis||VISIT||duo)?false:VIS.startSolo(mayor), duo:k=>{ duoT=0; duoForce=k||null; return true; }, cheer, court:{COURT,CS}, lineup, stats:()=>({ready,people:people.length,movers:movers.length,roles:walkers.map(w=>w.P.mayor?'市長':w.P.avery?'Avery':(w.P.kind+(w.P.d&&w.P.d.cur!=='無'?'/'+w.P.d.cur:''))),avery:avery&&avery.mode,duo:duo&&duo.kind,visit:VISIT&&{kind:VISIT.kind,phase:VISIT.phase,rest:+(VISIT.rest||0).toFixed(1)},pos:people.map(p=>p.obj.position.toArray().map(x=>+x.toFixed(1))),pp:people.slice(0,2).map(p=>[p.obj.position.x,p.obj.position.y,p.obj.position.z]),mw:mayor&&{a:mayor.a,b:mayor.b,t:mayor.t,wait:mayor.wait,wave:mayor.wave,cheer:mayor.cheer}}), update, pick, react, boostOf, setWeather, setNight:v=>{ T.force=v; lastSky=''; }, get weather(){ return W.kind; } };
 }
