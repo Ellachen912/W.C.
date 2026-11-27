@@ -90,7 +90,7 @@ export const TYPES={
   street:T('老街','biz',{req:[['home',1],['conv',1]],soon:1}),
   // 文化（家長 11-20 23:36：運動區併進文化區）
   art:T('美術館','culture',{maxLv:1,cost:[0,7],req:[['library',1]],stage:2}),
-  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍館','culture',{req:[['art',1]],soon:1}), aquarium:T('海生館','culture',{req:[['pier',1],['market',1]],soon:1}),
+  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍館','culture',{req:[['art',1]],soon:1}), aquarium:T('海生館','culture',{maxLv:1,req:[['pier',1],['market',1]]}),
   gym:T('運動中心','culture',{size:2,maxLv:2,cost:[0,5,4],req:[['school',1]],cap:'hall',stage:2}),   /* 家長 11-27 12:17：改成 2 格（Lv1 運動公園：專業跳水游泳池＋網球場；Lv2 加木星棒球場） */
   botanic:T('植物園','nature',{req:[['water',1]],soon:1}), playground:T('兒童遊戲公園','nature',{maxLv:2,req:[['school',1]],soon:1}), zoo:T('動物園','nature',{size:2,req:[['ranch',2]],soon:1}),
   observatory:T('天文台','astro',{size:2,cost:C(5,3),req:[['library',1]],cap:'hall',stage:2}),
@@ -113,7 +113,7 @@ export const TYPES={
 export const MAXLV=Object.fromEntries(Object.entries(TYPES).map(([k,v])=>[k,v.maxLv]));
 /* 一開始的位置：市政廳、市長的家；測試模式另外把 7 棟第一階段擺在預設位置（11-25：發電、污水、垃圾搬到新格子） */
 export const HOME_PLOT={hall:'HEX-026',mayor:'HEX-027',school:'HEX-017'};
-export const TEST_LAYOUT={hall:'HEX-026',school:'HEX-017',mayor:'HEX-027',power:'HEX-041',water:'HEX-001',sewage:'HEX-052',trash:'HEX-053',home:'HEX-024',garden:'HEX-002',ranch:'HEX-003',library:'HEX-018',hospital:'HEX-028',market:'HEX-023',clinic:'HEX-016-A',conv:'HEX-016-B',park:'HEX-037-A',breakfast:'HEX-035-A'};
+export const TEST_LAYOUT={aquarium:'HEX-040',hall:'HEX-026',school:'HEX-017',mayor:'HEX-027',power:'HEX-041',water:'HEX-001',sewage:'HEX-052',trash:'HEX-053',home:'HEX-024',garden:'HEX-002',ranch:'HEX-003',library:'HEX-018',hospital:'HEX-028',market:'HEX-023',clinic:'HEX-016-A',conv:'HEX-016-B',park:'HEX-037-A',breakfast:'HEX-035-A'};
 
 /* ---------- 規則：能不能蓋在這塊地、能不能升級 ---------- */
 export const nameOfT=t=>TYPES[t]?TYPES[t].name:t;

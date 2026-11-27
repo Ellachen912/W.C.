@@ -248,6 +248,7 @@ import { GARDEN_LV, RANCH_LV } from './s1_farm.js';
 import { binLids } from './s1_trash.js';
 import { initLife } from './life.js';
 import { bakeLot, countMeshes } from './perf.js';
+import { drawAquarium, disposeAquariums } from './s2_aquarium.js';
 import { pendingLen, pendingFrom } from './s1_kit.js';   // 11-25：等模型載好再合併
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';   // 家長 11-25：把不會動的小零件合併，畫得更快
 import { ASTRO_LV, ASTRO_TOP, astroTap } from './s2_astro.js';
@@ -513,11 +514,11 @@ function plotGlow(pid,mat){ const p=PLOTS[pid], c=tilePos(p.tile), g=new THREE.S
 const S1B={ power:POWER_LV, water:WATER_LV, sewage:SEWAGE_LV, trash:TRASH_LV, home:HOME_LV, garden:GARDEN_LV, ranch:RANCH_LV, library:LIBRARY_LV, clinic:CLINIC_LV, hospital:HOSPITAL_LV, breakfast:[BREAKFAST_LV[1]], market:MARKET_LV, conv:CONV_LV, park:PARK_LV, observatory:ASTRO_LV, pier:PIER_LV, train:STATION_LV, firestation:FIRE_LV, policebox:POLICE_LV, temple:TEMPLE_LV, stationery:STATIONERY_LV, art:ART_LV, gym:GYM_LV, bank:BANK_LV, orchard:ORCHARD_LV, tea:TEA_LV, bakery:[BAKERY_LV[1]], nightmarket:[NIGHT_LV[1]], fastfood:FASTFOOD_LV, icecream:ICECREAM_LV, burger:FASTFOOD_LV, japanese:JAPANESE_LV };
 const S1TOP={ power:[0,3.4,3.6,3.6], water:[0,2.8,3.0,3.6], sewage:[0,2.0,2.4,4.6], trash:[0,3.2,4.6], home:[0,2.6,2.8,4.8], garden:[0,2.2,3.8], ranch:[0,3.2,3.6], library:[0,3.1,4.2,5.3], clinic:[0,3.0], hospital:[0,4.1,6.2,8.4], breakfast:[0,4.2], market:[0,2.9,2.9,4.0], conv:[0,2.9], park:[0,2.3,2.3], observatory:ASTRO_TOP, pier:PIER_TOP, train:STATION_TOP, firestation:FIRE_TOP, policebox:POLICE_TOP, temple:TEMPLE_TOP, stationery:STATIONERY_TOP, art:ART_TOP, gym:GYM_TOP, bank:BANK_TOP, orchard:ORCHARD_TOP, tea:TEA_TOP, bakery:[0,BAKERY_TOP[2]], nightmarket:[0,NIGHT_TOP[2]], fastfood:FASTFOOD_TOP, icecream:ICECREAM_TOP, burger:FASTFOOD_TOP, japanese:JAPANESE_TOP };
 const TOPS=[0,3.2,3.6,4.2,5.0,5.5], TOPM=[0,2.4,2.9,3.4,3.9,4.3];
-const TOPH=(t,lv)=>S1B[t]?S1TOP[t][lv]:t==='mayor'?TOPM[lv]:TOPS[lv]*(t==='school'?.85:1);
+const TOPH=(t,lv)=>t==='aquarium'?4.6:S1B[t]?S1TOP[t][lv]:t==='mayor'?TOPM[lv]:TOPS[lv]*(t==='school'?.85:1);
 /* 整格建築的六角底盤（家長 11-13 09:46）：市政廳草地、市長的家淺石板、學校米色、菜園牧場泥土色；四座基礎建設不鋪；一之一 7 棟自己畫 */
 const PAD={hall:'#a9d98a',mayor:'#e9e2d3',school:'#e6dccb',garden:'#b9946a',ranch:'#c9a77a'};
 /* 底盤很薄，舊建築原本貼地的東西（跑道、廣場）才不會被蓋住 */
-function drawType(t,lv){ if(PAD[t]) L.hexPad(PAD[t],.42,.004,-.005); if(S1B[t]) S1B[t][lv-1][2](); else BUILDINGS[t].levels.find(x=>x.lv===lv).fn(); }
+function drawType(t,lv){ if(t==='aquarium'){ drawAquarium(); return; } if(PAD[t]) L.hexPad(PAD[t],.42,.004,-.005); if(S1B[t]) S1B[t][lv-1][2](); else BUILDINGS[t].levels.find(x=>x.lv===lv).fn(); }
 /* 測試模式：家長看每一棟逐級長大的樣子、試著蓋在別的格子，不動存檔 */
 const TM={on:false,b:{}};
 const curB=()=>TM.on?TM.b:S.b;
@@ -540,7 +541,7 @@ const LISTS=()=>[L.flags,L.anims,L.animals,L.drops,L.spinners,L.puffs,pulses,rot
 const lots={}; let cityVer=0, shadowDirty=true; const PERF={before:0,after:0};
 const SHARED=()=>new Set(Object.values(L.mats));
 /* 拆掉／重畫一塊地：零件、這棟自己的材質和貼圖都放掉（共用的材質不動）。原本只放掉零件，升級越多次記憶體越多，iPad 會越來越慢 */
-function dropLot(id){ const o=lots[id]; if(!o) return; scene.remove(o.g); const keep=SHARED(), ms=new Set();
+function dropLot(id){ const o=lots[id]; if(!o) return; scene.remove(o.g); disposeAquariums(o.g); const keep=SHARED(), ms=new Set();
   o.g.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material) for(const m of [].concat(x.material)) if(!keep.has(m)&&m!==L.glassMat&&m!==L.cityFlagMat) ms.add(m); });
   for(const m of ms){ for(const k of ['map','emissiveMap','normalMap','roughnessMap','alphaMap']) if(m[k]&&m[k].isCanvasTexture&&!m[k].userData.keep) m[k].dispose(); m.dispose(); }
   for(const [arr,items] of o.own){ if(!items.length) continue; const s=new Set(items); for(let i=arr.length-1;i>=0;i--) if(s.has(arr[i])) arr.splice(i,1); }
@@ -674,8 +675,8 @@ canvas.addEventListener('pointerup',e=>{
 /* 點名牌：鏡頭飛過去；「看全城」飛回來 */
 let fly=null;
 function flyTo(pos,t){ stopFollow();
-  const tg=pos?new THREE.Vector3(pos.x,1.2,pos.z+(t==='school'?-.6:0)):HOME.target.clone();
-  const p=pos?tg.clone().add(t==='school'?new THREE.Vector3(7,15,14):new THREE.Vector3(9,12,17)):HOME.pos.clone();
+  const tg=pos?new THREE.Vector3(pos.x,t==='aquarium'?2.0:1.2,pos.z+(t==='school'?-.6:0)):HOME.target.clone();
+  const p=pos?tg.clone().add(t==='aquarium'?new THREE.Vector3(4,4.5,9.2):t==='school'?new THREE.Vector3(7,15,14):new THREE.Vector3(9,12,17)):HOME.pos.clone();
   fly={t0:controls.target.clone(),p0:camera.position.clone(),t1:tg,p1:p,k:0};
 }
 /* ---------- 點到人物：鏡頭拉近、跟著他走（家長 11-19 17:18）；點別的地方、按「看全城」或箭頭就停 ---------- */
@@ -723,6 +724,14 @@ controls.addEventListener('change',()=>{ if(follow) return;   /* 跟著人走的
 
 function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.fov=w/h<1?44:32; camera.updateProjectionMatrix(); UI.shiftView(); }
 addEventListener('resize',resize); resize();
+const previewAquarium=new URLSearchParams(location.search).get('aquarium')==='1';
+if(previewAquarium){
+  const pid=TEST_LAYOUT.aquarium, button=document.getElementById('tmB');
+  TM.on=true; TM.b={[pid]:{t:'aquarium',lv:1}};
+  button.hidden=false; button.style.display=''; button.classList.add('on'); button.textContent='離開測試';
+  const pos=plotPos(pid,TM.b[pid]);
+  controls.target.set(pos.x,2,pos.z); camera.position.set(pos.x+4,6.5,pos.z+10.8); controls.update();
+}
 renderCity();
 let LIFE=null; window.__life=()=>LIFE; try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
 
