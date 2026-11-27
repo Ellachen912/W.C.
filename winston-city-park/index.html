@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Winston City 運動公園</title>
+<style>
+:root{font-family:system-ui,-apple-system,"PingFang TC",sans-serif;color:#35314c;background:#e3f6fd}
+*{box-sizing:border-box}
+body{margin:0}
+main{height:100svh;min-height:300px;position:relative;overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+header{position:absolute;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));background:#fffaf3;padding:.8rem 1rem;border-radius:16px;box-shadow:0 4px 18px #3941601c;pointer-events:none}
+h1{font-size:clamp(16px,3vw,22px);margin:0}
+header p{font-size:13px;margin:.3rem 0 0;color:#625c71}
+.controls{position:absolute;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:.35rem;max-width:96%;padding:.4rem;background:#fffaf3;border-radius:16px;box-shadow:0 4px 18px #3941601c;white-space:nowrap}
+button,a{font:inherit;font-size:14px;padding:0 .73rem;min-height:44px;border-radius:12px;color:inherit}
+button{border:1px solid #d9d2c6;background:#fff;cursor:pointer}
+button[aria-pressed="true"]{color:white;background:#335d8d;border-color:#335d8d}
+a{display:inline-flex;align-items:center}
+button:focus-visible,a:focus-visible{outline:3px solid #4f83c4;outline-offset:2px}
+#status{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fffaf3;padding:.8rem 1rem;border-radius:12px;text-align:center;max-width:85%;pointer-events:none}
+#status[hidden]{display:none}
+</style>
+<script type="importmap">
+{"imports":{"three":"./vendor/build/three.module.js","three/addons/":"./vendor/examples/jsm/"}}
+</script>
+</head>
+<body>
+<main id="stage">
+<canvas id="view" aria-label="Winston City 運動公園三維模型"></canvas>
+<header><h1>Winston City 運動公園</h1><p>拖曳旋轉 · 捲動或雙指縮放</p></header>
+<div id="status" role="status">載入模型中…</div>
+<nav class="controls" aria-label="模型視角">
+<button type="button" data-view="overview" aria-pressed="true">全景</button>
+<button type="button" data-view="stadium" aria-pressed="false">棒球場</button>
+<button type="button" data-view="park" aria-pressed="false">泳池與網球</button>
+<a href="./park.glb" download>GLB</a>
+</nav>
+<noscript>請開啟 JavaScript 以旋轉模型。</noscript>
+</main>
+<script type="module" src="./viewer.js"></script>
+</body>
+</html>

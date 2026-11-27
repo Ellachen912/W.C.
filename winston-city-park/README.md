@@ -1,0 +1,18 @@
+# Winston City 運動公園
+
+在本資料夾啟動 HTTP 伺服器後開啟 `index.html`，或使用 [GitHub Pages](https://ellachen912.github.io/W.C./winston-city-park/) 開啟展示。頁面支援拖曳旋轉、捲動或雙指縮放，以及全景、棒球場和泳池與網球三個視角。
+
+| 檔案 | 用途 |
+| --- | --- |
+| `Winston City Park City Edition.blend` | 可編輯的原始場景。棒球、游泳與網球的 796 個原有網格以頂點與面指紋逐一核對。 |
+| `park.glb` | 未使用 Meshopt 壓縮的通用版本。86,586 個三角面。 |
+| `park-mobile.glb` | 網頁預設載入。Meshopt 壓縮，88,091 個三角面，34 個繪製呼叫，沒有外部貼圖。 |
+
+## 城市規格
+
+- 以兩格中點為 GLB 原點，Y 朝上。巨蛋在負 Z，休閒區在正 Z。
+- 六角地塊外接圓半徑 4.2，運動區底色內縮 0.3，兩個地塊中心距離為 √3 × 4.2 + 1.6。兩格共用格間道路，入口以人行穿越帶銜接。
+- 原三項運動設施使用同一個縮放係數。兩座攤販維持上版已調整的相對尺寸。
+- 參考 [市地圖與道路規格](../city-v1.3/index.html)、[城市共用建模工具](../city-v1.3/lib.js)、[正式城市建築](../city-v1.3/buildings.js)、[夜市推車](../city-v1.3/s2_nightmarket.js) 和 [效能處理](../city-v1.3/perf.js)。
+
+Three.js 0.160.0 及其配套模組置於 `vendor`，授權見同目錄的 `LICENSE`。

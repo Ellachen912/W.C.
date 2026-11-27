@@ -1,0 +1,22 @@
+{
+  "tileRadius": 4.2,
+  "roadGap": 1.6,
+  "centerDistance": 8.874613391789284,
+  "boundaryAdjustments": [
+    "Entrance plaza steps.002",
+    "Entrance plaza steps.003"
+  ],
+  "trianglesBeforeMobileOptimization": 199630,
+  "materialBatchesBeforeMobileOptimization": 53,
+  "verifiedPreservedMeshes": 796,
+  "sourceSha256": "1a3dd99ca8758cec81f6799adb3576c5433992883bbf20ab2d3bb8f70ac08195",
+  "standardGLB": {
+    "triangles": 86586,
+    "bytes": 5472572
+  },
+  "mobileGLB": {
+    "triangles": 88091,
+    "drawCalls": 34,
+    "bytes": 944580
+  }
+}
