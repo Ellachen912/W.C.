@@ -91,7 +91,7 @@ export const TYPES={
   // 文化（家長 11-20 23:36：運動區併進文化區）
   art:T('美術館','culture',{maxLv:1,cost:[0,7],req:[['library',1]],stage:2}),
   music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍館','culture',{req:[['art',1]],soon:1}), aquarium:T('海生館','culture',{req:[['pier',1],['market',1]],soon:1}),
-  gym:T('運動中心','culture',{size:2,maxLv:2,cost:C(5,2),req:[['school',1]],cap:'hall',stage:2}),   /* 家長 11-27 12:17：改成 2 格（Lv1 運動公園：專業跳水游泳池＋網球場；Lv2 加木星棒球場） */
+  gym:T('運動中心','culture',{size:2,maxLv:2,cost:[0,5,4],req:[['school',1]],cap:'hall',stage:2}),   /* 家長 11-27 12:17：改成 2 格（Lv1 運動公園：專業跳水游泳池＋網球場；Lv2 加木星棒球場） */
   botanic:T('植物園','nature',{req:[['water',1]],soon:1}), playground:T('兒童遊戲公園','nature',{maxLv:2,req:[['school',1]],soon:1}), zoo:T('動物園','nature',{size:2,req:[['ranch',2]],soon:1}),
   observatory:T('天文台','astro',{size:2,cost:C(5,3),req:[['library',1]],cap:'hall',stage:2}),
   // 醫療與安全（家長 11-20 23:16：醫院改成市政廳 Lv3 就開放）

@@ -9,11 +9,18 @@
    座標：兩格中間為原點，x 沿兩格排列方向，正門朝 +z；左格中心 (-4.44,0)、右格 (4.44,0)；尖頂朝前後（頂點 z=±4.2）。 */
 import * as THREE from 'three';
 import { kit } from './s1_kit.js';
-import { ROOT, add, rbox, cyl, sphere, mat, hexPad, canvasTex, anims, tree, bush, flag, glassMat, ionicCol, wallMat } from './lib.js';
+import { cityTree } from './trees.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { ROOT, add, cyl, mat, hexPad, canvasTex, anims, glassMat } from './lib.js';
+/* 11-27 12:42 優化（家長：面數會不會太多）：這棟有幾百個小零件，lib.js 的 rbox 每個圓角方塊約 590 個三角形、sphere 每顆約 720 個。
+   這裡改用省面版：小東西用一般方塊（12 個三角形），大一點的才做圓角而且只切 1 段（約 108 個）；小球只用 8×6 段。看起來差不多，面數少很多。 */
+function rbox(w,h,d,c,x,y,z,r=.05,parent){ const big=Math.min(w,h,d)>=.12&&r>=.02;
+  const geo=big?new RoundedBoxGeometry(w,h,d,1,Math.min(r,w/2-.001,h/2-.001,d/2-.001)):new THREE.BoxGeometry(w,h,d);
+  const m=add(new THREE.Mesh(geo,c.isMaterial?c:mat(c)),parent); m.position.set(x,y+h/2,z); return m; }
+function sphere(r,c,x,y,z,o={},parent){ const lo=r<.06; const m=add(new THREE.Mesh(new THREE.SphereGeometry(r,lo?8:16,lo?6:10),c.isMaterial?c:mat(c,o)),parent); m.position.set(x,y,z); return m; }
 
 const CA=-4.44, CB=4.44;
-const TEAL='#3fa99c', TEALD='#2f8579', CREAMW='#f3e6cc', NAVY='#4a4a61', MARI='#f0bd52', PADB='#4f84c4', CLAY='#c98a5e', SAND='#e3d6bd', WOOD='#b9875a', STEEL='#8d97a6';
-const em=(c,i=.6)=>mat(c,{emissive:new THREE.Color(c),emissiveIntensity:i});
+const TEALD='#2f8579', CREAMW='#f3e6cc', NAVY='#4a4a61', MARI='#f0bd52', PADB='#4f84c4', CLAY='#c98a5e', SAND='#e3d6bd', WOOD='#b9875a', STEEL='#8d97a6';
 function grp(x,y,z,ry=0,parent){ const g=new THREE.Group(); g.position.set(x,y,z); g.rotation.y=ry; (parent||ROOT).add(g); return g; }
 const rnd=(s=7)=>()=>((s=s*16807%2147483647)/2147483647);
 
@@ -26,20 +33,14 @@ const grassTex=canvasTex((g,s)=>{ g.fillStyle='#8fcf72'; g.fillRect(0,0,s,s); co
 function texM(tex,rx,ry,o={}){ const t=tex.clone(); t.needsUpdate=true; t.repeat.set(rx,ry); return new THREE.MeshStandardMaterial({map:t,roughness:.9,...o}); }
 function pad(cx){ const g=grp(cx,0,0,Math.PI/6); g.add(hexPad(texM(paveTex,3,3),.42,.09)); }
 /* 圓角草地（貼地、不會閃）：在 y 高度鋪一片 */
-function lawn(x,z,w,d,r=.4,y=.115){ const s=new THREE.Shape(), hw=w/2, hd=d/2; s.moveTo(-hw+r,-hd); s.lineTo(hw-r,-hd); s.quadraticCurveTo(hw,-hd,hw,-hd+r); s.lineTo(hw,hd-r); s.quadraticCurveTo(hw,hd,hw-r,hd); s.lineTo(-hw+r,hd); s.quadraticCurveTo(-hw,hd,-hw,hd-r); s.lineTo(-hw,-hd+r); s.quadraticCurveTo(-hw,-hd,-hw+r,-hd);
+function lawn(x,z,w,d,r=.4,y=.125){ const s=new THREE.Shape(), hw=w/2, hd=d/2; s.moveTo(-hw+r,-hd); s.lineTo(hw-r,-hd); s.quadraticCurveTo(hw,-hd,hw,-hd+r); s.lineTo(hw,hd-r); s.quadraticCurveTo(hw,hd,hw-r,hd); s.lineTo(-hw+r,hd); s.quadraticCurveTo(-hw,hd,-hw,hd-r); s.lineTo(-hw,-hd+r); s.quadraticCurveTo(-hw,-hd,-hw+r,-hd);
   const geo=new THREE.ShapeGeometry(s); geo.rotateX(-Math.PI/2); const uv=geo.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i,uv.getX(i)/1.5,uv.getY(i)/1.5);
   const m=add(new THREE.Mesh(geo,new THREE.MeshStandardMaterial({map:grassTex,roughness:.95}))); m.position.set(x,y,z); m.castShadow=false; m.userData.noCheck=1;
   rbox(w+.06,.03,d+.06,'#bfb39c',x,y-.04,z,.015).castShadow=false; return m; }
-function ribbon(pts,w,c,y){ const cv=new THREE.CatmullRomCurve3(pts.map(([x,z])=>new THREE.Vector3(x,0,z))), P=cv.getPoints(64), pos=[], idx=[];
-  P.forEach((p,i)=>{ const t=cv.getTangent(i/64), nx=-t.z, nz=t.x; pos.push(p.x+nx*w/2,y,p.z+nz*w/2, p.x-nx*w/2,y,p.z-nz*w/2); if(i) idx.push(2*i-2,2*i-1,2*i, 2*i-1,2*i+1,2*i); });
-  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
-  const m=add(new THREE.Mesh(g,mat(c,{side:THREE.DoubleSide}))); m.castShadow=false; m.userData.noCheck=1; return m; }
-function path(pts,w=.5){ ribbon(pts,w+.1,'#c7baa2',.128); ribbon(pts,w,'#f4eee2',.14); }
 
 /* ---------- 小東西 ---------- */
 function lampP(x,z){ cyl(.03,.045,1.0,NAVY,x,.1,z,10); rbox(.1,.04,.1,NAVY,x,1.08,z,.01); sphere(.075,'#fff3c4',x,1.18,z,{emissive:0xffd98a,emissiveIntensity:.45}); const c=add(new THREE.Mesh(new THREE.ConeGeometry(.11,.09,6),mat(NAVY))); c.position.set(x,1.29,z); }
 function benchP(x,z,ry=0){ const g=grp(x,.1,z,ry); rbox(.62,.05,.2,'#b97a4c',0,.15,0,.02,g); rbox(.62,.15,.04,'#b97a4c',0,.22,-.09,.02,g); for(const s of [-1,1]) rbox(.05,.17,.18,NAVY,s*.25,0,0,.01,g); }
-function treeP(x,z,s=1){ tree(x,z,s,['#5aa957','#62b955','#4f9f52'][Math.abs(Math.round(x*7+z*3))%3]); }
 
 /* ================= 左格：運動公園（家長 11-27 11:01：不要攤販、不要擠、游泳池和網球場要現代化） =================
    後半：現代泳池（淺灰大石板平台、白色池緣、藍綠池水、池底深色水道線、白色薄板遮陽棚＋黑色細柱、白色躺椅、玻璃欄杆）
@@ -54,28 +55,19 @@ function waterTex(n){ return canvasTex((g,s)=>{ const gr=g.createLinearGradient(
   g.strokeStyle='rgba(255,255,255,.3)'; g.lineWidth=2; for(let i=0;i<45;i++){ const x=R()*s,y=R()*s; g.beginPath(); g.moveTo(x,y); g.quadraticCurveTo(x+10,y-5,x+20,y); g.stroke(); }
   const q=s/64; for(let i=0;i<64;i++) for(const [xx,yy] of [[i*q,0],[i*q,s-q],[0,i*q],[s-q,i*q]]){ g.fillStyle=['#1f6fa8','#2a86c0','#3a9bd0'][(i*7+(xx+yy|0))%3]; g.fillRect(xx+.5,yy+.5,q-1,q-1); } },512); }   // 池邊一圈藍色馬賽克磚
 const glassPanel=new THREE.MeshStandardMaterial({color:'#cfe9f2',transparent:true,opacity:.35,roughness:.05,metalness:.1,side:THREE.DoubleSide});
-function modernLounger(x,z){ const g=grp(x,.17,z); rbox(.17,.05,.42,WHITE,0,.05,0,.02,g); rbox(.15,.03,.3,'#c9ccd1',0,.1,.05,.012,g); const b=rbox(.15,.03,.14,'#c9ccd1',0,.15,-.17,.012,g); b.rotation.x=.55;
-  for(const s of [-1,1]) rbox(.16,.05,.02,CHAR,0,0,s*.17,.005,g); }
 function floatTex(alt){ return canvasTex((g,s)=>{ for(let i=0;i<16;i++){ g.fillStyle=(i<2||i>13)?'#e8524a':(i%2?'#ffffff':(alt?'#3d78bf':'#f2c14e')); g.fillRect(i*s/16,0,s/16,s); g.fillStyle='rgba(0,0,0,.12)'; g.fillRect(i*s/16,0,1.5,s); } },128); }
 function signM(t,bg){ const cv=document.createElement('canvas'); cv.width=384; cv.height=128; const g=cv.getContext('2d'); g.fillStyle=bg; g.beginPath(); g.roundRect(0,0,384,128,24); g.fill();
   g.fillStyle='#ffffff'; g.font='bold 78px "PingFang TC","Noto Sans CJK TC",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,192,68); const tx=new THREE.CanvasTexture(cv); tx.colorSpace=THREE.SRGBColorSpace; return new THREE.MeshStandardMaterial({map:tx,transparent:true,roughness:.7}); }
 /* 救生員高椅：白色高腳椅＋橘色救生圈 */
-function lifeguard(x,z){ const g=grp(x,.17,z); for(const sx of [-1,1]) for(const sz of [-1,1]){ const l=rbox(.025,.55,.025,WHITE,sx*.08,0,sz*.08,.006,g); l.rotation.z=-sx*.08; }
-  for(const y of [.18,.34]) rbox(.2,.02,.02,WHITE,-.0,y,.09,.004,g); rbox(.22,.03,.2,WHITE,0,.55,0,.008,g); rbox(.22,.18,.03,WHITE,-.1,.58,0,.006,g).rotation.y=Math.PI/2;
-  rbox(.2,.06,.2,'#e8524a',0,.555,0,.01,g); const ring=add(new THREE.Mesh(new THREE.TorusGeometry(.07,.022,8,18),mat('#f08a3c')),g); ring.position.set(-.13,.38,0); ring.rotation.y=Math.PI/2;
-  cyl(.01,.01,.35,'#d9dde3',.0,.58,.0,6,g); const u=add(new THREE.Mesh(new THREE.ConeGeometry(.2,.08,8),mat('#e8524a')),g); u.position.set(0,.97,0); }
+/* 救生員椅（家長 11-27 12:29：放回來，但不要太高）：矮的白色高腳椅、紅色坐墊、小紅傘、橘色救生圈；ry 決定面向 */
+function lifeguard(x,y,z,ry=0){ const g=grp(x,y,z,ry), H=.3;
+  for(const sx of [-1,1]) for(const sz of [-1,1]){ const l=rbox(.022,H,.022,WHITE,sx*.07,0,sz*.07,.005,g); l.rotation.z=-sx*.06; }
+  rbox(.18,.018,.018,WHITE,0,.12,.08,.004,g); rbox(.18,.018,.018,WHITE,0,.21,.08,.004,g);                       // 前面兩階踏板
+  rbox(.19,.025,.18,WHITE,0,H,0,.006,g); rbox(.17,.05,.16,'#e8524a',0,H+.025,0,.008,g); rbox(.19,.15,.025,WHITE,0,H+.025,-.085,.005,g);   // 座位、坐墊、椅背
+  const ring=add(new THREE.Mesh(new THREE.TorusGeometry(.055,.018,8,18),mat('#f08a3c')),g); ring.position.set(0,H*.55,-.09);
+  cyl(.008,.008,.24,'#d9dde3',.07,H,-.07,6,g); const u=add(new THREE.Mesh(new THREE.ConeGeometry(.14,.06,8),mat('#e8524a')),g); u.position.set(.07,H+.27,-.07); }
 /* 跳水台（家長 11-27 11:32：要真正的跳水台）：池子左端，一座白色跳水塔（兩層平台、藍色台面、欄杆、後面爬梯）＋一支低的彈跳板，都伸到水面上 */
-function diving(ex,pz){ const g=grp(ex,.17,pz), B='#3d78bf', rail=(len,x,y,z,ry=0)=>{ const r=rbox(len,.015,.015,'#d9dde3',x,y,z,.004,g); r.rotation.y=ry; };
-  // 跳水塔：兩根白色柱子
-  const tz=-.22; for(const sz of [-.12,.12]) rbox(.09,.95,.07,WHITE,-.2,0,tz+sz,.02,g);
-  for(const [y,len] of [[.5,.42],[.92,.6]]){ rbox(len,.035,.3,WHITE,-.2+len/2-.06,y,tz,.008,g); rbox(len-.02,.012,.28,B,-.2+len/2-.06,y+.035,tz,.004,g);   // 平台＋藍色止滑台面
-    for(const sz of [-.14,.14]){ rail(len-.1,-.2+len/2-.11,y+.18,tz+sz); for(let k=0;k<3;k++) rbox(.012,.18,.012,'#d9dde3',-.24+k*(len-.1)/2,y+.035,tz+sz,.003,g); } }
-  for(let k=0;k<9;k++) rbox(.012,.012,.18,'#d9dde3',-.3,.1+k*.1,tz,.003,g); for(const sz of [-.09,.09]) rbox(.015,.95,.015,'#d9dde3',-.3,0,tz+sz,.003,g);   // 後面的爬梯
-  // 彈跳板：藍色底座＋白色長板（前端微微往上翹）
-  const bz=.24; rbox(.2,.14,.16,B,-.17,0,bz,.02,g); const bd=rbox(.62,.025,.12,WHITE,.18,.15,bz,.008,g); bd.rotation.z=.05; rbox(.04,.04,.12,'#e8524a',-.03,.14,bz,.006,g);
-  for(const sz of [-.07,.07]){ const h=add(new THREE.Mesh(new THREE.TorusGeometry(.06,.01,6,12,Math.PI),mat('#d9dde3',{metalness:.6,roughness:.3})),g); h.position.set(-.2,.14,bz+sz); } }
 /* 白色圓盆栽，裡面一顆可愛的圓灌木 */
-function pot(x,z){ cyl(.11,.08,.16,WHITE,x,.17,z,16); cuteBush(x,z,.55,.33); }
 /* 專業跳水＋游泳池（家長 11-27 11:43：基地架高、專業跳水游泳池、旁邊不要休息處）
    石材基座架高 0.3，正面中間一道階梯上去；台上右邊 8 水道標準泳池（出發台、浮球繩、仰式旗），左邊獨立的深藍跳水池，
    左邊緣立一座三層跳水塔（10 米、5 米、3 米平台）＋兩支彈跳板（1 米、3 米）。四周玻璃欄杆。 */
@@ -93,17 +85,18 @@ function proPool(x,z){ const DW=3.3, DD=2.0, H=.3, Y=.1+H, pz=z-.28;
   for(let i=0;i<4;i++) rbox(.7,(i+1)*H/4,.12,'#e6e3dc',x+.45,.1,z+DD/2+.06+(3-i)*.12,.01);
   // 8 水道標準泳池（右邊）
   const LW=1.9, LD=1.15, lx=x+.42; rbox(LW+.1,.04,LD+.1,WHITE,lx,T-.02,pz,.01);
-  waterPlane(LW,LD,new THREE.MeshStandardMaterial({map:waterTex(8),roughness:.06,metalness:.1}),lx,T+.022,pz);
-  for(let i=1;i<8;i++){ const r=add(new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,LW-.06,8),new THREE.MeshStandardMaterial({map:floatTex(i%2),roughness:.5}))); r.rotation.z=Math.PI/2; r.position.set(lx,T+.028,pz-LD/2+i*LD/8); r.castShadow=false; }
+  waterPlane(LW,LD,new THREE.MeshStandardMaterial({map:waterTex(8),roughness:.06,metalness:.1}),lx,T+.034,pz);   // 水面比池緣高 1.4 公分（原本只差 2 毫米，手機會閃）
+  for(let i=1;i<8;i++){ const r=add(new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,LW-.06,8),new THREE.MeshStandardMaterial({map:floatTex(i%2),roughness:.5}))); r.rotation.z=Math.PI/2; r.position.set(lx,T+.042,pz-LD/2+i*LD/8); r.castShadow=false; }
   for(let i=0;i<8;i++){ const bz=pz-LD/2+(i+.5)*LD/8, bx=lx+LW/2+.09; rbox(.1,.09,.1,WHITE,bx,T,bz,.015); rbox(.11,.02,.11,'#3d78bf',bx-.005,T+.09,bz,.006); }   // 出發台
   for(const ex of [-1,1]){ const fx=lx+ex*(LW/2-.28); for(const ez of [-1,1]) cyl(.01,.01,.5,'#d9dde3',fx,T,pz+ez*(LD/2+.07),6);   // 仰式旗
     for(let k=0;k<11;k++){ const t=add(new THREE.Mesh(new THREE.ConeGeometry(.028,.065,3),mat(['#f2777a','#ffffff','#5aa8e6'][k%3]))); t.rotation.x=Math.PI; t.position.set(fx,T+.46,pz-LD/2-.05+k*(LD+.1)/10); }
     const st=add(new THREE.Mesh(new THREE.CylinderGeometry(.004,.004,LD+.16,4),mat('#9aa0aa'))); st.rotation.x=Math.PI/2; st.position.set(fx,T+.49,pz); }
   // 跳水池（左邊，深藍色）
   const DWl=.85, dx=x-1.03; rbox(DWl+.1,.04,LD+.1,WHITE,dx,T-.02,pz,.01);
-  waterPlane(DWl,LD,new THREE.MeshStandardMaterial({map:diveTex(),roughness:.06,metalness:.1}),dx,T+.022,pz);
+  waterPlane(DWl,LD,new THREE.MeshStandardMaterial({map:diveTex(),roughness:.06,metalness:.1}),dx,T+.034,pz);
   for(const o of [-.06,.06]){ const r=add(new THREE.Mesh(new THREE.TorusGeometry(.06,.01,8,14,Math.PI),mat('#e4e8ee',{metalness:.7,roughness:.25}))); r.position.set(dx+.2+o,T+.04,pz+LD/2+.04); r.rotation.y=Math.PI/2; }
   diveTower(x-DW/2+.08,T,pz);
+  lifeguard(x-1.05,T,z+.68,Math.PI);                                                  // 救生員椅：跳水池前面，面向池子
   // 四周玻璃欄杆（正面留階梯開口）
   const gr=(len,px,pz2,ry)=>glassRail(px,pz2,len,ry,T);
   gr(DW-.1,x,z-DD/2+.03,0); gr(DD-.1,x+DW/2-.03,z,Math.PI/2); gr(1.6,x-.8,z+DD/2-.03,0); gr(.62,x+1.33,z+DD/2-.03,0);
@@ -127,7 +120,7 @@ const fenceTex=canvasTex((g,s)=>{ g.clearRect(0,0,s,s); g.strokeStyle='rgba(40,4
 function fenceMat(w,h){ const t=fenceTex.clone(); t.needsUpdate=true; t.repeat.set(w*4,h*4); return new THREE.MeshStandardMaterial({map:t,transparent:true,alphaTest:.3,side:THREE.DoubleSide,roughness:.6}); }
 function tennis(x,z){ const W=2.1, D=1.85, g=grp(x,.1,z);
   rbox(W+.08,.04,D+.08,'#d6d4ce',0,0,0,.02,g);
-  for(const s of [-1,1]){ const p=new THREE.Mesh(new THREE.PlaneGeometry(W/2-.03,D-.04),new THREE.MeshStandardMaterial({map:courtTex,roughness:.85})); p.rotation.x=-Math.PI/2; p.position.set(s*W/4,.045,0); p.receiveShadow=true; p.userData.noCheck=1; g.add(p);
+  for(const s of [-1,1]){ const p=new THREE.Mesh(new THREE.PlaneGeometry(W/2-.03,D-.04),new THREE.MeshStandardMaterial({map:courtTex,roughness:.85})); p.rotation.x=-Math.PI/2; p.position.set(s*W/4,.055,0); p.receiveShadow=true; p.userData.noCheck=1; g.add(p);
     const net=new THREE.Mesh(new THREE.PlaneGeometry(.5,.06),fenceMat(.5,.06)); net.position.set(s*W/4,.085,0); g.add(net); rbox(.52,.012,.015,'#ffffff',s*W/4,.115,0,.003,g);
     for(const o of [-.27,.27]) cyl(.01,.01,.12,CHAR,s*W/4+o,.04,0,6,g); }
   const H=.4, side=(len,px,pz,ry,h)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(len,h),fenceMat(len,h)); m.position.set(px,.04+h/2,pz); m.rotation.y=ry; g.add(m); const t=rbox(len,.018,.018,CHAR,0,0,0,.004,g); t.position.set(px,.04+h,pz); t.rotation.y=ry; };
@@ -144,16 +137,9 @@ function tennis(x,z){ const W=2.1, D=1.85, g=grp(x,.1,z);
   for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){ const lx=sx*(W/2+.0), lz=sz*(D/2-.25); cyl(.016,.02,1.0,CHAR,lx,.04,lz,8,g); rbox(.2,.03,.08,CHAR,lx-sx*.06,1.04,lz,.006,g); rbox(.17,.01,.06,mat('#ffffff',{emissive:new THREE.Color('#fff6dc'),emissiveIntensity:.7}),lx-sx*.06,1.035,lz,.003,g); } }
 /* 柱狀樹（現代感，跟美術館一樣）、清水模長椅、地燈 */
 /* 可愛的樹（家長 11-27 11:27：柱狀樹太醜，要可愛的）：短短的圓樹幹＋三顆圓滾滾的光滑樹冠，有的開粉紅花、有的結橘色小果子 */
-const CROWN=[['#7ccf6a','#8edb7a'],['#f6b3c6','#fbc9d7'],['#6cc46a','#7fd27b']];
-function cuteTree(x,z,k=1,v=0){ const [c1,c2]=CROWN[v%3]; cyl(.05*k,.07*k,.42*k,'#b07a52',x,.1,z,12); const y=.1+.62*k;
-  const ball=(r,dx,dy,dz,c)=>{ const m=add(new THREE.Mesh(new THREE.SphereGeometry(r,20,14),mat(c,{roughness:.75}))); m.position.set(x+dx,y+dy,z+dz); return m; };
-  ball(.3*k,0,0,0,c1); ball(.22*k,-.2*k,-.06*k,.08*k,c2); ball(.22*k,.19*k,-.04*k,-.06*k,c2); ball(.2*k,.02*k,.24*k,.02*k,c2);
-  const dots=v===1?['#ffffff','#ffe3ec']:v===2?['#ffb347','#ff8c42']:null;
-  if(dots) for(let i=0;i<7;i++){ const a=i*2.4, h=(i%3-1)*.12*k; sphere(.035*k,dots[i%2],x+Math.cos(a)*.29*k,y+h,z+Math.sin(a)*.29*k); } }
-function cuteBush(x,z,k=1,y0=.1){ const m=add(new THREE.Mesh(new THREE.SphereGeometry(.22*k,18,12),mat('#77c96a',{roughness:.8}))); m.position.set(x,y0+.15*k,z); m.scale.y=.8;
-  for(let i=0;i<5;i++){ const a=i*1.26; sphere(.03*k,['#ff8fab','#ffd166','#ffffff'][i%3],x+Math.cos(a)*.17*k,y0+.22*k,z+Math.sin(a)*.17*k); } }
-function cypress(x,z,k=1){ cyl(.03*k,.04*k,.25*k,'#6b4a2e',x,.1,z,6); const f=sphere(.22*k,mat('#4f8f4f',{flatShading:true}),x,.1+.75*k,z); f.scale.set(.75,2.2,.75); }
-function concBench(x,z,ry=0){ const g=grp(x,.1,z,ry); rbox(.75,.16,.24,'#d9d7d1',0,0,0,.02,g); rbox(.7,.035,.2,WOOD,0,.16,0,.008,g); }
+/* 樹：用共用的 trees.js（家長 11-27 12:39：公園四種樹＋Blender 城市樹混著種，可以改顏色，有粉紅花樹） */
+function cuteBush(x,z,k=1,y0=.1){ const m=add(new THREE.Mesh(new THREE.IcosahedronGeometry(.22*k,1),mat('#58b04d',{flatShading:true,roughness:.9}))); m.position.set(x,y0+.14*k,z); m.scale.y=.75;   // 灌木也改成同一種多面體
+  for(let i=0;i<4;i++){ const a=i*1.57+.4; sphere(.03*k,['#ff8fab','#ffd166','#ffffff'][i%3],x+Math.cos(a)*.18*k,y0+.2*k,z+Math.sin(a)*.18*k); } }
 function bollard(x,z){ rbox(.07,.3,.07,CHAR,x,.1,z,.01); rbox(.075,.05,.075,mat('#fff3d0',{emissive:new THREE.Color('#ffd98a'),emissiveIntensity:.8}),x,.34,z,.01); }
 function stripPath(x0,x1,z,w=.5){ rbox(Math.abs(x1-x0),.03,w,'#f1eee8',(x0+x1)/2,.11,z,.01).castShadow=false; }
 
@@ -161,10 +147,10 @@ function park(lv){ const x=CA;
   pad(x);
   proPool(x-.1,-1.75);
   tennis(x-.15,1.5);
-  stripPath(x-1.9,lv>=2?-.6:x+3.25,.05,.5);                                       // 一條直步道，Lv2 接到中間的路
+  stripPath(x-1.9,lv>=2?.95:x+3.25,.05,.5);                                       // 一條直步道；Lv2 穿過中間的路，接到棒球場正門（家長 11-27 12:29）
   rbox(.4,.03,.5,'#f1eee8',x-.15,.11,.45,.01).castShadow=false;                    // 往網球場入口
   lawn(x-2.45,.95,.8,1.5,.25); lawn(x+2.3,1.15,.85,1.3,.25); lawn(x,3.05,.9,.7,.25);
-  for(const [dx,dz,k,v] of [[-2.45,.7,1,0],[2.3,.95,1,1],[-2.35,-1.15,.85,2],[2.4,-1.2,.85,0],[0,3.0,.8,1]]) cuteTree(x+dx,dz,k,v);
+  for(const [dx,dz,k,kind,tint] of [[-2.45,.7,1,'p12'],[2.3,.95,1,'city','pink'],[-2.35,-1.15,.85,'p04'],[2.4,-1.2,.85,'p06'],[0,3.15,.8,'p13','pink']]) cityTree(x+dx,dz,{k,kind,tint});
   for(const [dx,dz] of [[-2.55,1.5],[-2.2,1.6],[2.1,1.65],[2.6,1.45],[-.35,3.05],[.35,3.1]]) cuteBush(x+dx,dz,.75,.115);
   for(const dx of [-1.7,-.6,.6,1.7]) bollard(x+dx,.42);
 }
@@ -190,11 +176,11 @@ function scoreRows(){ const cv=document.createElement('canvas'); cv.width=1024; 
   g.fillStyle='#bfe3ef'; ['1','2','3','4','5','6','7','8','9','分','安','失'].forEach((h,i)=>g.fillText(h,X(i),52));
   [['客隊',[0,0,1,0,0,0,'•','•','•',1,4,0]],['主隊',[0,1,0,2,0,0,'•','•','•',3,6,0]]].forEach(([n,v],j)=>{ const yy=150+j*100; g.fillStyle='#fff8ea'; g.fillText(n,110,yy); v.forEach((t,i)=>{ g.fillStyle=i>8?MARI:'#bfe3ef'; g.fillText(String(t),X(i),yy); }); });
   const tx=new THREE.CanvasTexture(cv); tx.colorSpace=THREE.SRGBColorSpace; tx.anisotropy=4; const m=new THREE.Mesh(new THREE.PlaneGeometry(.98,.29),new THREE.MeshBasicMaterial({map:tx,transparent:true,depthWrite:false})); m.userData.noCheck=1; return m; }
-export const BP={face:'front'};   // 'side'：跟家長的檔一樣正門朝中間的路；'front'：正門朝前（縮小成 0.9 倍才塞得進尖頂）
+export const BP={face:'side'};   // 'side'：跟家長的檔一樣正門朝中間的路；'front'：正門朝前（縮小成 0.9 倍才塞得進尖頂）
 function ballpark(){ const x=CB, Y=.1, front=BP.face==='front', S=front?.9:1, R=front?0:-Math.PI/2, OFF=.135*S;   // OFF：模型範圍中心和球場圓心差 0.135
   pad(x);
   rbox(1.6,.09,3.9,texM(paveTex,1,3),0,0,0,.03);                         // 兩格中間的路也鋪起來
-  kit('models/ballpark.glb',front?x:x-OFF,front?OFF*0-.0:0,{y0:Y,rot:R,w:front?6.58*S:null});
+  kit('models/ballpark.glb',front?x:x-OFF,0,{y0:Y,rot:R,w:front?6.58*S:null,then:o=>o.traverse(m=>{ if(m.isMesh&&/seams|transom|stitch|Chalk|Scoreboard|padding/.test(m.material.name)){ m.material.polygonOffset=true; m.material.polygonOffsetFactor=-2; m.material.polygonOffsetUnits=-4; m.material.userData.keep=true; } })});   // 貼在別的面上的細條（屋頂接縫、白線…）往前推一點，手機上不閃
   // Blender 座標 → 這裡：先換成模型自己的座標（lx, lz），縮放、轉向，再移到格子上
   const P=(bx,by,bz)=>{ const lx=bx*S, lz=-(by-BP_CY)*S, y=Y+(bz-BP_Z0)*S; return front?[x+lx,y,lz]:[x-OFF-lz,y,lx]; };
   const put=(m,px,py,pz)=>{ if(front) m.position.set(px,py,pz+.012); else { m.position.set(px-.012,py,pz); m.rotation.y=-Math.PI/2; } m.scale.setScalar(S); ROOT.add(m); };
@@ -203,7 +189,7 @@ function ballpark(){ const x=CB, Y=.1, front=BP.face==='front', S=front?.9:1, R=
 }
 /* Lv1 時右格：草地、小樹、長椅（之後長成棒球場） */
 function rightLawn(){ const x=CB; pad(x); lawn(x,-.2,4.2,4.0,.8);
-  for(const [dx,dz,s,v] of [[-1.3,-1.6,1.0,0],[1.0,-2.3,.9,1],[2.1,-.3,.95,2],[-.3,1.4,.85,0],[-2.2,.4,.8,1],[1.4,1.8,.75,0]]) cuteTree(x+dx,dz,s,v);
+  for(const [dx,dz,k,kind,tint] of [[-1.3,-1.6,1.0,'p12'],[1.0,-2.3,.9,'city','pink'],[2.1,-.3,.95,'p13'],[-.3,1.4,.85,'p04'],[-2.2,.4,.8,'city'],[1.4,1.8,.75,'p06','lime']]) cityTree(x+dx,dz,{k,kind,tint});
   cuteBush(x+.6,.4,.85,.115); cuteBush(x-1.0,-.2,.8,.115); benchP(x-1.0,1.9,.3); benchP(x+.4,-.6,-.6); lampP(x-.2,2.6); }
 
 function gym(lv){ park(lv); if(lv>=2) ballpark(); else rightLawn(); }

@@ -491,7 +491,12 @@ export function initLife(ctx){
     const key=[n.toFixed(2),dk.toFixed(2),wet].join(); if(key!==lastSky){ lastSky=key; sky(n,dk,wet); }
     for(let i=pops.length-1;i>=0;i--){ const p=pops[i]; p.t+=dt; p.o.position.y+=dt*.8; p.o.material.transparent=true; if(p.t>1.5){ scene.remove(p.o); pops.splice(i,1); } }
     // 說話泡泡
-    if(bubble){ if(clock>bubble.until){ bubble.el.remove(); bubble=null; } else { v3.setFromMatrixPosition(bubble.p.obj.matrixWorld); v3.y+=bubble.p.h*1.35; v3.project(camera); bubble.el.style.left=((v3.x+1)/2*W2)+'px'; bubble.el.style.top=((1-v3.y)/2*H2)+'px'; } }
+    if(bubble){ if(clock>bubble.until){ bubble.el.remove(); bubble=null; } else { v3.setFromMatrixPosition(bubble.p.obj.matrixWorld); v3.y+=bubble.p.h*1.35; v3.project(camera);
+      /* 家長 11-27 12:48：跟隨模式時對話框跑到上面、跟標題重疊，而且一直晃 → 夾在畫面裡（不蓋到上面的城市名牌），位置慢慢跟過去、取整數像素 */
+      const el=bubble.el, bw=el.offsetWidth, bh=el.offsetHeight, hud=(document.querySelector('.city')?.getBoundingClientRect().bottom||70)+12;
+      const tx=Math.min(Math.max((v3.x+1)/2*W2,bw/2+8),W2-bw/2-8), ty=Math.min(Math.max((1-v3.y)/2*H2,hud+bh),H2-24);
+      if(bubble.sx==null){ bubble.sx=tx; bubble.sy=ty; } else { const k=Math.min(1,dt*6); bubble.sx+=(tx-bubble.sx)*k; bubble.sy+=(ty-bubble.sy)*k; }
+      el.style.left=Math.round(bubble.sx)+'px'; el.style.top=Math.round(bubble.sy)+'px'; } }
   }
   return { visit:k=>startVisit(k), cheer, court:{COURT,CS}, lineup, stats:()=>({ready,people:people.length,movers:movers.length,roles:walkers.map(w=>w.P.mayor?'市長':w.P.avery?'Avery':(w.P.kind+(w.P.d&&w.P.d.cur!=='無'?'/'+w.P.d.cur:''))),avery:avery&&avery.mode,visit:VISIT&&{kind:VISIT.kind,phase:VISIT.phase,rest:+(VISIT.rest||0).toFixed(1)},pos:people.map(p=>p.obj.position.toArray().map(x=>+x.toFixed(1))),pp:people.slice(0,2).map(p=>[p.obj.position.x,p.obj.position.y,p.obj.position.z]),mw:mayor&&{a:mayor.a,b:mayor.b,t:mayor.t,wait:mayor.wait,wave:mayor.wave,cheer:mayor.cheer}}), update, pick, react, boostOf, setWeather, setNight:v=>{ T.force=v; lastSky=''; }, get weather(){ return W.kind; } };
 }

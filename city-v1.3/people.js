@@ -5,7 +5,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export const M=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:0,...o});
 export function add(parent,geo,mat,p=[0,0,0],rot=[0,0,0],s=[1,1,1]){ const m=new THREE.Mesh(geo,mat); m.position.set(...p); m.rotation.set(...rot); m.scale.set(...s); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; }
-const PAL={skin:['#ffd9c0','#f2c4a2','#d9a27c'],hair:['#2a2329','#5b3a2a','#8a5a36'],top:['#e5544b','#f2a33a','#4fae6a','#3f86d6','#9a6fd1','#f07aa6','#2fb3a8'],bottom:['#3a4a7a','#6b5444','#2f3a4a','#c9b38f']};
+const PAL={skin:['#f2c4a2','#e8b48e','#d9a27c'],   /* 家長 11-27 12:52：#ffd9c0 太白（死白），從膚色清單拿掉，補一個中間的 #e8b48e */
+  hair:['#2a2329','#5b3a2a','#8a5a36'],top:['#e5544b','#f2a33a','#4fae6a','#3f86d6','#9a6fd1','#f07aa6','#2fb3a8'],bottom:['#3a4a7a','#6b5444','#2f3a4a','#c9b38f']};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const mm=(c,r=.55)=>M(c,{roughness:r});
 const mInk=M('#22202a',{roughness:.3}), mBlush=M('#f7a0a0',{transparent:true,opacity:.35}), mLip=M('#b5533f'), mShoe=mm('#3b3036',.5);
@@ -25,8 +26,8 @@ function hairMesh(HR,mat,{front=.32,side=-.62,faceW=1.25,puff=1.08,ear=0,ys=1.1,
   const m=new THREE.Mesh(g,mat); m.castShadow=true; return m; }
 
 function makeDoll(kind){
-  const C={ '阿姨':{top:'#e5544b',bottom:'#3a4a7a',hair:'#2a2329',skin:'#ffd9c0'}, '叔叔':{top:'#4fae6a',bottom:'#6b5444',hair:'#2a2329',skin:'#f2c4a2'}, '小孩':{top:'#f2a33a',bottom:'#3f86d6',hair:'#5b3a2a',skin:'#ffd9c0'},
-    '小女孩':{top:'#f7c6d9',bottom:'#e8619a',hair:'#2a2329',skin:'#ffd9c0'}, '奶奶':{top:'#b07aa1',bottom:'#4d4a5c',hair:'#e9e7e2',skin:'#ffd9c0'}, '爺爺':{top:'#7f97b3',bottom:'#5d5a55',hair:'#e9e7e2',skin:'#f2c4a2'} }[kind];
+  const C={ '阿姨':{top:'#e5544b',bottom:'#3a4a7a',hair:'#2a2329',skin:'#f2c4a2'}, '叔叔':{top:'#4fae6a',bottom:'#6b5444',hair:'#2a2329',skin:'#f2c4a2'}, '小孩':{top:'#f2a33a',bottom:'#3f86d6',hair:'#5b3a2a',skin:'#f2c4a2'},
+    '小女孩':{top:'#f7c6d9',bottom:'#e8619a',hair:'#2a2329',skin:'#f2c4a2'}, '奶奶':{top:'#b07aa1',bottom:'#4d4a5c',hair:'#e9e7e2',skin:'#f2c4a2'}, '爺爺':{top:'#7f97b3',bottom:'#5d5a55',hair:'#e9e7e2',skin:'#f2c4a2'} }[kind];
   const mSkin=mm(C.skin), mHair=M(C.hair,{roughness:.5,side:THREE.DoubleSide}), mTop=mm(C.top), mBot=mm(C.bottom);
   const man=kind==='叔叔'||kind==='爺爺', kid=kind==='小孩'||kind==='小女孩', old=kind==='爺爺'||kind==='奶奶', W=man?1.12:1, H=man?1.1:1, B=W;   // B：身體寬度
   const root=new THREE.Group(); if(kid) root.scale.setScalar(.72);

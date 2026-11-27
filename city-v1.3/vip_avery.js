@@ -4,7 +4,7 @@ import { M, add } from './people.js';
 import { VSCALE, wrapUp, pickCap, SHIRT, pickA } from './vip_common.js';
 import { buildExpressions, expressionController } from './vip_expressions.js';
 export function makeAvery(){
-const mSkin=M('#ffdcc6',{roughness:.6}), mHair=M('#503b32',{roughness:.78,side:THREE.DoubleSide}), mDress=M('#cbbdf5',{roughness:.65,side:THREE.DoubleSide})   /* 家長 11-26 19:15：裙子固定粉紫色（樣張原本的顏色），不隨機 */,
+const mSkin=M('#f2c4a2',{roughness:.6})   /* 家長 11-27 12:54：原本 #ffdcc6 太白，改成居民清單的膚色 */, mHair=M('#503b32',{roughness:.78,side:THREE.DoubleSide}), mDress=M('#cbbdf5',{roughness:.65,side:THREE.DoubleSide})   /* 家長 11-26 19:15：裙子固定粉紫色（樣張原本的顏色），不隨機 */,
   mShoePink=M('#f8cbd8',{roughness:.65}), mWhite=M('#fbfaf7',{roughness:.6}), mInk=M('#22202a',{roughness:.3}), mBrow=M('#24202a'), mLip=M('#c0604f'), mBlush=M('#f7a0a0',{transparent:true,opacity:.35}),
   mFur=M('#fdeef2',{roughness:1}), mPink=M('#f58fa6',{roughness:.9}), mYel=M('#f4c63d');
 
