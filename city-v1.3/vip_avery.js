@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { M, add } from './people.js';
-import { VSCALE, wrapUp, pickCap, SHIRT, pickA } from './vip_common.js';
+import { VSCALE, wrapUp, pickCap, SHIRT, pickA, preserveVipJoints, installVipActions } from './vip_common.js';
 import { buildExpressions, expressionController } from './vip_expressions.js';
 export function makeAvery(){
 const mSkin=M('#f2c4a2',{roughness:.6})   /* 家長 11-27 12:54：原本 #ffdcc6 太白，改成居民清單的膚色 */, mHair=M('#503b32',{roughness:.78,side:THREE.DoubleSide}), mDress=M('#cbbdf5',{roughness:.65,side:THREE.DoubleSide})   /* 家長 11-26 19:15：裙子固定粉紫色（樣張原本的顏色），不隨機 */,
@@ -14,6 +14,18 @@ const body=new THREE.Group(); person.add(body);
 const lathe=(pts,seg=36)=>new THREE.LatheGeometry(pts.map(([x,y])=>new THREE.Vector2(x,y)),seg);
 // 洋裝（A 字裙，一整塊硬的，腿在裡面擺）
 const dress=add(body,lathe([[0,.31],[.16,.275],[.186,.27],[.192,.285],[.145,.39],[.112,.45],[.1,.49],[.07,.52],[.05,.525],[0,.525]]),mDress,[0,0,0],[0,0,0],[1,1,.78]);
+// Lower only the skirt hem in the crouch, keeping the fitted bodice in place.
+const skirtPositions=dress.geometry.attributes.position;
+const loweredHem=skirtPositions.clone();
+for(let i=0;i<skirtPositions.count;i++){
+  const y=skirtPositions.getY(i);
+  const t=THREE.MathUtils.clamp((.40-y)/.13,0,1);
+  const coverage=t*t*(3-2*t);
+  loweredHem.setXYZ(i,skirtPositions.getX(i)*(1+.045*coverage),y-.078*coverage,
+    skirtPositions.getZ(i)*(1+.13*coverage));
+}
+dress.geometry.morphAttributes.position=[loweredHem];
+dress.updateMorphTargets();
 add(body,new THREE.CylinderGeometry(.045,.05,.06,16),mSkin,[0,.535,0]);   // 脖子
 // 腿＋襪子＋鞋子（鞋上有小花）
 function leg(x){ const g=new THREE.Group(); g.position.set(x,.26,0); body.add(g);
@@ -54,7 +66,7 @@ for(const s of [-1,1]){
 {const shape=new THREE.Shape();shape.moveTo(-.016,-.018);shape.quadraticCurveTo(-.019,-.018,-.017,-.013);shape.lineTo(-.003,.023);shape.quadraticCurveTo(0,.028,.003,.023);shape.lineTo(.017,-.013);shape.quadraticCurveTo(.019,-.018,.014,-.018);shape.closePath();const nose=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.007,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:3,steps:1,curveSegments:12}),M('#dc925e'));nose.scale.set(.85,.85,.85);onHead(nose,0,-.15,HR*.997);}
 let originalMouth;{ const arc=Math.PI*.62, m=new THREE.Mesh(new THREE.TorusGeometry(.036,.0052,8,20,arc),mLip); m.rotation.z=Math.PI+(Math.PI-arc)/2; originalMouth=onHead(wrap(m),0,-.24,HR*.994); }
 
-const {mouths,smileEyes}=buildExpressions({originalMouth,P,HR,face,mInk,mouthPitch:-0.24,lashes:true});
+const {mouths,smileEyes,calmEyes}=buildExpressions({originalMouth,P,HR,face,mInk,mouthPitch:-0.24,lashes:true});
 
 // Sculpted bob: raised forehead clearance, rounded volume and directional locks.
 const smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
@@ -79,15 +91,15 @@ for(let i=0;i<2;i++)add(body,new THREE.SphereGeometry(.009,12,8),mWhite,[0,.447-
 
   /* 家長 11-26：髮飾（兔夾或兔耳，一定戴）、表情都隨機；表情過一陣子會換 */
   const ear=pickA(['兔夾','兔耳']);   /* 家長 11-26 19:10：一定要戴，只是隨機選兔子髮夾或兔耳髮箍 */ band.visible=ear==='兔耳'; clip.visible=ear==='兔夾';
-  const live=[...new Set(Object.values(mouths)),...smileEyes,...eyes,...normalLashes];
+  const live=[...new Set(Object.values(mouths)),...smileEyes,...calmEyes,...eyes,...normalLashes];
   for(const o of live){ o.userData.keep=1; o.traverse(x=>{ x.userData.noMerge=1; x.userData.keep=1; }); }
-  let expr='原版'; const setExpr=e=>{ expr=e; const happy=e==='微笑'||e==='開心大笑'; for(const m of new Set(Object.values(mouths))) m.visible=m===mouths[e]; for(const m of smileEyes) m.visible=happy; for(const m of normalLashes) m.visible=!happy; for(const m of eyes) m.visible=!happy; };
+  let expr='原版'; const setExpr=e=>{ expr=e; for(const m of calmEyes) m.visible=e==='閉眼'; const happy=e==='微笑'||e==='開心大笑'; for(const m of new Set(Object.values(mouths))) m.visible=m===mouths[e]; for(const m of smileEyes) m.visible=happy&&e!=='閉眼'; for(const m of normalLashes) m.visible=!happy&&e!=='閉眼'; for(const m of eyes) m.visible=!happy&&e!=='閉眼'; };
   const expressions=expressionController(setExpr);
   let T=0, blinkT=2;
+  preserveVipJoints([armL,armR],[legL,legR],dress);
   const OUT=wrapUp(person,{avery:true},.98,VSCALE*.8);   // 家長 11-18：Avery 年紀比較小，縮小一點
   OUT.react=expressions.react;
   OUT.anim=(dt,st)=>{ T+=dt; const walk=st.walk, wave=st.wave, sw=walk?Math.sin(st.ph):0;
-    expressions.tick(dt,wave);
     legL.rotation.x=sw*.5; legR.rotation.x=-sw*.5;
     body.position.y=walk?Math.abs(Math.cos(st.ph))*.02:Math.sin(T*2)*.004; body.rotation.z=walk?Math.sin(st.ph)*.03:0;
     dress.rotation.y=walk?Math.sin(st.ph)*.06:0;
@@ -97,10 +109,6 @@ for(let i=0;i<2;i++)add(body,new THREE.SphereGeometry(.009,12,8),mWhite,[0,.447-
     const wob=walk?Math.sin(st.ph*2)*.05:Math.sin(T*2)*.015; ears[0].rotation.x=wob; ears[1].rotation.x=wob*.8;
     blinkT-=dt; const closed=blinkT<0; if(blinkT<-.12) blinkT=2.5+Math.random()*2.5;
     for(const e of eyes) e.scale.y=closed?.004:.034; };
-  /* 移交 11-26：坐下／平滑起身（sit 0→1 約 0.9 秒，smoothstep），原地開心慶祝（取自 mayor-motion-v4，腳不離地；不跑、不跳、不驚訝） */
-  { const baseAnim=OUT.anim; let sitS=0, cT=0; OUT.sitK=0;
-    OUT.anim=(dt,st)=>{ baseAnim(dt,st);
-      sitS=Math.max(0,Math.min(1,sitS+(st.sit?dt:-dt)/.9)); const k=sitS*sitS*(3-2*sitS); OUT.sitK=k;
-      if(k>0){ legL.rotation.x+=(-1.48-legL.rotation.x)*k; legR.rotation.x+=(-1.48-legR.rotation.x)*k; body.position.y+=.115*k; armL.rotation.x-=.35*k; armR.rotation.x-=.35*k; }
-      if(st.cheer&&k===0&&!st.walk){ cT+=dt; const a=.5+.5*Math.sin(cT*5); armL.rotation.z=1.85+.35*a; armR.rotation.z=-1.85-.35*a; armL.rotation.x=armR.rotation.x=-.25; head.rotation.z=.055*Math.sin(cT*5); body.rotation.z=.025*Math.sin(cT*5); body.position.y=0; legL.rotation.x=legR.rotation.x=0; } else if(cT){ cT=0; body.rotation.x=0; head.rotation.x=0; } }; }
+  installVipActions(OUT,{body,head,arms:[armL,armR],legs:[legL,legR],skin:mSkin,
+    avery:true,expressions,face,radius:HR,dress});
   return OUT; }
