@@ -39,7 +39,9 @@ export function createVisits(o){
   function probe(g,p,prevY,climb=.3){ const top=prevY+climb; ray.set(V(p.x,top,p.z),DOWN); ray.far=top+.3;   /* climb：往上最多爬多高（坐的位置只量椅子下面的地板） */
     const h=ray.intersectObject(g,true).find(i=>i.object.isMesh&&visible(i.object)&&!i.object.userData.noRay);
     return h?Math.max(h.point.y+.01,SW_Y):SW_Y; }
-  function chain(g,locals,y0,low){ let y=y0; return locals.map(([x,z],i)=>{ const w=toW(g,x,z); y=probe(g,w,y,low&&i===locals.length-1?.05:.3); w.y=y; return w; }); }
+  /* known：走進來時量過的點（同一個座標出去時用一樣的高度，下台階不會一下掉很多） */
+  function chain(g,locals,y0,low,known){ let y=y0; return locals.map(([x,z],i)=>{ const w=toW(g,x,z), k=x+','+z; y=known&&known.has(k)?known.get(k):probe(g,w,y,low&&i===locals.length-1?.05:.3); w.y=y; return w; }); }
+  const knownOf=(locals,pts)=>new Map(locals.map(([x,z],i)=>[x+','+z,pts[i].y]));
   /* 門口最近的人行道點 */
   function nodeNear(p,pid){ const N=WALK.nodes, h=pid&&hexOf(pid), own=h&&h.walk&&h.walk.filter(i=>N[i].nb.length&&!N[i].dead); if(own&&own.length){ let best=-1, bd=1e9; for(const i of own){ const d=Math.hypot(N[i].x-p.x,N[i].z-p.z); if(d<bd){ bd=d; best=i; } } return best; }   /* 先找這棟自己那一格的人行道 */
     let best=-1, bd=1e9; for(let i=0;i<N.length;i++){ const n=N[i]; if(!n.nb.length||n.dead) continue; const d=Math.hypot(n.x-p.x,n.z-p.z); if(d<bd){ bd=d; best=i; } } return best; }
@@ -76,7 +78,7 @@ export function createVisits(o){
     if(st&&!can(w,act)){ if(act==='sit'&&st.stand){ act='stand'; at=st.stand; } else if(act==='look'||act==='stand'){ act=can(w,'look')?act:'stand'; } else return null; }
     const loc=[G.door,...(G.in||[]),...(st?(act==='sit'||at===st.at?(st.go||[]):[]):[]),...(at?[at]:[])];
     const inW=chain(g,loc,SW_Y,act==='sit'), last=inW[inW.length-1];
-    const outW=chain(g,[...(G.out||[]),G.door],last.y);
+    const outW=chain(g,[...(G.out||[]),G.door],last.y,false,knownOf(loc,inW));
     const node=nodeNear(inW[0],pid); if(node<0) return null; const N=WALK.nodes[node], nodeP=V(N.x,SW_Y,N.z), curb=curbPoint(node,inW[0]);
     const path=walkPath(w.P.obj.position,node); if(!path){ w._why='nopath'; return null; }
     const pos=w.P.obj.position.clone();
@@ -211,7 +213,7 @@ export function createVisits(o){
       for(const [gn,G] of Object.entries(L.groups)){ const c=new THREE.Color(COL[ci++%COL.length]), m=new THREE.MeshBasicMaterial({color:c,depthTest:false}), lm=new THREE.LineBasicMaterial({color:c,depthTest:false});
         const lines=[]; const inL=[G.door,...(G.in||[])], inW=chain(g,inL,SW_Y); lines.push(inW);
         for(const s of G.stay||[]){ const a=chain(g,[...(s.go||[]),s.at],inW[inW.length-1].y,s.act==='sit'); lines.push([inW[inW.length-1],...a]); if(s.stand){ const b=chain(g,[s.stand],inW[inW.length-1].y); lines.push([inW[inW.length-1],...b]); } }
-        const last=inW[inW.length-1]; lines.push(chain(g,[...(G.out||[]),G.door],last.y).reduce((acc,p)=>(acc.push(p),acc),[last]));
+        const last=inW[inW.length-1]; lines.push(chain(g,[...(G.out||[]),G.door],last.y,false,knownOf(inL,inW)).reduce((acc,p)=>(acc.push(p),acc),[last]));
         for(const pts of lines){ const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(p=>p.clone().setY(p.y+.01))),lm); ln.renderOrder=999; dbg.add(ln);
           for(const p of pts){ const s=new THREE.Mesh(ball,m); s.position.copy(p); s.renderOrder=999; dbg.add(s); } }
         const d=new THREE.Mesh(big,m); d.position.copy(inW[0]); d.renderOrder=999; dbg.add(d);
@@ -237,7 +239,7 @@ export function createVisits(o){
     for(const pid in B){ const file=FILES[B[pid].t], g=lotGroup(pid); if(!file||!g) continue; g.updateMatrixWorld(true); const L=lvOf(file,B[pid].lv); if(!L) continue; const h=hexOf(pid);
       for(const [gn,G] of Object.entries(L.groups)){ const lines=[]; const inW=chain(g,[G.door,...(G.in||[])],SW_Y); lines.push(['in',inW]);
         for(const [i,st] of (G.stay||[]).entries()){ lines.push(['stay'+i,chain(g,[...(st.go||[]),st.at],inW[inW.length-1].y,st.act==='sit')]); if(st.stand) lines.push(['stand'+i,chain(g,[st.stand],inW[inW.length-1].y)]); }
-        lines.push(['out',chain(g,[...(G.out||[]),G.door],inW[inW.length-1].y)]);
+        lines.push(['out',chain(g,[...(G.out||[]),G.door],inW[inW.length-1].y,false,knownOf([G.door,...(G.in||[])],inW))]);
         const node=nodeNear(inW[0],pid), N=node>=0?WALK.nodes[node]:null, c=node>=0?curbPoint(node,inW[0]):null;
         /* 穿東西檢查：每一段在腳踝、腰的高度水平射一條線，碰到建築的東西就記下來（進門的最後一段不算） */
         const hits=[]; for(const [k,pts] of lines){ for(let j=1;j<pts.length;j++){ if(k==='in'&&G.inside&&j===pts.length-1) continue; const a=pts[j-1], bb=pts[j], d=Math.hypot(bb.x-a.x,bb.z-a.z); if(d<.02) continue;
