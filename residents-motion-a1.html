@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Winston City ｜ 居民動作測試</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f2ea;color:#262e2b;font:16px system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:18px}
+h1{font-size:1.6rem;margin:0 0 10px}figure{margin:0;border-radius:15px;overflow:hidden;background:#e8eee6;border:1px solid #c8d0c2}
+canvas{display:block;width:100%;height:clamp(280px,45vh,510px);touch-action:none}figcaption{background:white;padding:9px 13px}
+fieldset{margin:10px 0;border:1px solid #bbc7b8;border-radius:9px;padding:4px 8px 8px}
+button,select{font:inherit;color:inherit;background:#fff;border:1px solid #a4b19f;padding:9px 13px;margin:3px;border-radius:7px}
+button[aria-pressed=true]{background:#284e40;color:white}p{margin:8px 0}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<main>
+<h1>Winston City ｜ 居民動作測試</h1>
+<figure><canvas aria-label="一般居民的 3D 動作測試"></canvas><figcaption id="status" aria-live="polite">載入中</figcaption></figure>
+<fieldset id="actions"><legend>動作</legend></fieldset>
+<fieldset id="faces"><legend>表情</legend></fieldset>
+<label>鏡頭 <select id="focus" aria-label="選擇近看居民"><option value="">全員</option></select></label>
+<label><input id="crowd" type="checkbox"> 24 人同場</label>
+<p>拖曳旋轉，雙指或滾輪縮放。座椅高度 0.37。</p>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { spawnDoll } from './city-v1.3/people.js';
+
+const canvas=document.querySelector('canvas'),status=document.querySelector('#status');
+const scene=new THREE.Scene(); scene.background=new THREE.Color('#e8eee6');
+scene.add(new THREE.HemisphereLight(0xffffff,0xc2b5a3,2.3));
+const light=new THREE.DirectionalLight(0xfff2dc,2.2); light.position.set(-2,4,4); scene.add(light);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const camera=new THREE.PerspectiveCamera(36,1,.02,40);
+const controls=new OrbitControls(camera,canvas);
+controls.enableDamping=true; controls.enablePan=true; controls.minDistance=.30; controls.maxDistance=8;
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(20,20),new THREE.MeshStandardMaterial({color:'#d2dfcf'}));
+floor.rotation.x=-Math.PI/2; floor.position.y=-.004; scene.add(floor);
+
+const roster=[
+ ['阿姨'],['叔叔'],['小孩'],['小女孩'],['奶奶'],['爺爺'],
+ ['阿姨','嬰兒車'],['叔叔','遛狗'],['爺爺','拐杖'],['阿姨','清潔隊員'],['叔叔','警察']
+];
+const actors=[];
+const focus=document.querySelector('#focus');
+const seatTop=.37;
+const wood=new THREE.MeshStandardMaterial({color:'#ae8360',roughness:.9});
+const seat=new THREE.Group(); scene.add(seat);
+function chairPart(size,x,y,z){
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(...size),wood);
+ mesh.position.set(x,y,z); seat.add(mesh);
+}
+chairPart([.34,.035,.26],0,seatTop-.0175,-.123);
+for(const x of [-.139,.139]) for(const z of [-.22,-.018]) chairPart([.032,.335,.032],x,.1675,z);
+chairPart([.34,.17,.028],0,.48,-.238);
+for(const x of [-.14,.14]) chairPart([.032,.19,.032],x,.43,-.238);
+
+const secondSeat=seat.clone(); scene.add(secondSeat);
+
+function addResident(i){
+ const [kind,acc]=roster[i%roster.length];
+ const actor=spawnDoll({kind,acc});
+ const row=Math.floor(i/6), column=i%6;
+ actor.obj.position.set((column-2.5)*.49,0,.4-row*.84);
+ actor.home=actor.obj.position.clone();
+ actors.push(actor); scene.add(actor.obj);
+ if(i<roster.length) focus.add(new Option(acc??kind,String(i)));
+}
+roster.forEach((_,i)=>addResident(i));
+function frameCamera(){
+ const chosen=focus.value===''?null:actors[Number(focus.value)];
+ const showPair=motion==='chat'||motion==='sitChat'||motion==='whisper';
+ const partner=chosen&&showPair?actors[Number(focus.value)^1]:null;
+ for(const actor of actors) actor.obj.visible=!chosen||actor===chosen||actor===partner;
+ if(chosen){
+  const x=partner?(chosen.home.x+partner.home.x)/2:chosen.home.x;
+  const y=motion==='sit'||motion==='sitChat'?.45:.28;
+  controls.target.set(x,y,chosen.home.z);
+  camera.position.set(x+.13,y+.24,chosen.home.z+(partner?1.49:1.26));
+ } else {
+  const depth=actors.length>11?1.56:.43;
+  controls.target.set(0,.23,-depth+.38);
+  const portrait=canvas.clientWidth/canvas.clientHeight<1.25;
+  camera.position.set(.03,actors.length>11?2.45:1.28,portrait?4.26:3.06);
+ }
+ controls.update();
+}
+focus.onchange=frameCamera;
+document.querySelector('#crowd').onchange=e=>{
+ if(e.target.checked){ while(actors.length<24)addResident(actors.length); }
+ else while(actors.length>roster.length)scene.remove(actors.pop().obj);
+ frameCamera();
+};
+const actions={stand:'站著',look:'站著看',sit:'坐下',chat:'聊天',whisper:'說悄悄話',pray:'拜拜',sweep:'掃地',
+ crouch:'蹲下',guard:'站崗敬禮',handshake:'握手',sitChat:'坐下＋聊天',cover:'手遮嘴開心笑',walk:'走路',wave:'揮手',rain:'下雨'};
+const faces={auto:'依動作',normal:'平常',smile:'微笑',laugh:'開心笑',calm:'閉眼'};
+let motion='stand',mood='auto',t=0,resetAct=false;
+function buttons(group,labels,choose){
+ const container=document.querySelector('#'+group);
+ for(const [key,label] of Object.entries(labels)){
+  const b=document.createElement('button'); b.textContent=label; b.dataset.key=key; b.setAttribute('aria-pressed','false');
+  b.onclick=()=>{choose(key);frameCamera();for(const button of container.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button===b));};
+  container.append(b);
+ }
+}
+buttons('actions',actions,key=>{motion=key;t=0;resetAct=true;status.textContent=actions[motion]+' ｜ '+faces[mood];});
+buttons('faces',faces,key=>{mood=key;status.textContent=actions[motion]+' ｜ '+faces[mood];});
+document.querySelector('[data-key=stand]').click();
+document.querySelector('[data-key=auto]').click();
+
+function animate(dt){
+ t+=dt;
+ const paired=motion==='chat'||motion==='sitChat';
+ const children=motion==='whisper';
+ const sit=motion==='sit'||motion==='sitChat';
+ const selected=focus.value===''?0:Number(focus.value);
+ const first=motion==='sit'&&actors[selected].canDo('sit')?selected:0;
+ const second=motion==='sitChat'?1:-1;
+ for(const [i,actor] of actors.entries()){
+  const isChildPair=i===2||i===3;
+  const inPair=paired||children&&isChildPair;
+  actor.obj.rotation.y=inPair?(i%2?-1.1:1.1):0;
+ }
+ for(const [i,actor] of actors.entries()){
+  const other=actors[i%2?i-1:i+1]??actors[i===2?3:2];
+  const speaking=(i%2===Math.floor(t/3.5)%2)&&!actor.d.push;
+  const act=motion==='sitChat'?'chat':motion==='whisper'?(i===2&&t<5?'whisper':i===3&&t<5?'chat':'stand'):motion;
+  const seated=sit&&actor.canDo('sit')&&(i===first||i===second);
+  actor.anim(dt,{act:resetAct?undefined:act,look:paired||children||motion==='handshake'?other.obj.position:{x:0,z:1.1},
+   talk:paired&&speaking,cover:motion==='cover'||children&&i===3&&t>=5&&t<6.5,
+   face:mood==='auto'?(motion==='cover'||children&&i===3&&t>=5&&t<6.5?'laugh':undefined):mood,
+   sit:seated,walk:motion==='walk',ph:t*6,wave:motion==='wave',rain:motion==='rain'});
+  actor.obj.position.y=(seatTop-actor.sitDrop)*actor.sitK;
+ }
+ for(const [chair,index] of [[seat,first],[secondSeat,1]]){
+  const actor=actors[index];
+  chair.visible=actor.obj.visible&&actor.sitK>0;
+  chair.position.set(actor.home.x,0,actor.home.z);
+  chair.rotation.y=actor.obj.rotation.y;
+ }
+ resetAct=false;
+}
+function resize(){
+ const w=canvas.clientWidth,h=canvas.clientHeight;
+ renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+function render(){controls.update();renderer.render(scene,camera);}
+addEventListener('resize',()=>{resize();frameCamera();});
+resize();frameCamera();
+let prev=performance.now();
+renderer.setAnimationLoop(now=>{animate(Math.min(.05,(now-prev)/1000));prev=now;render();});
+window.a1Preview={actors,renderAt(seconds){
+ renderer.setAnimationLoop(null);
+ for(let i=0;i<Math.round(seconds*60);i++) animate(1/60);
+ render();
+}};
+</script>
+</html>

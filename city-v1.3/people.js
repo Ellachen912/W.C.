@@ -9,6 +9,7 @@ const PAL={skin:['#f2c4a2','#e8b48e','#d9a27c'],   /* 家長 11-27 12:52：#ffd9
   hair:['#2a2329','#5b3a2a','#8a5a36'],top:['#e5544b','#f2a33a','#4fae6a','#3f86d6','#9a6fd1','#f07aa6','#2fb3a8'],bottom:['#3a4a7a','#6b5444','#2f3a4a','#c9b38f']};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const mm=(c,r=.55)=>M(c,{roughness:r});
+const RESIDENT_LAUGH=new THREE.MeshBasicMaterial({color:'#77382e',side:THREE.DoubleSide});
 const mInk=M('#22202a',{roughness:.3}), mBlush=M('#f7a0a0',{transparent:true,opacity:.35}), mLip=M('#b5533f'), mShoe=mm('#3b3036',.5);
 const lathe=(pts,seg=18)=>new THREE.LatheGeometry(pts.map(([x,y])=>new THREE.Vector2(x,y)),seg);
 const sstep=(a,b,x)=>{ const t=Math.min(1,Math.max(0,(x-a)/(b-a))); return t*t*(3-2*t); };
@@ -49,14 +50,33 @@ function makeDoll(kind){
   add(head,new THREE.SphereGeometry(HR,20,14),mSkin);
   const P=(yaw,pitch,rad=HR)=>new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(rad);
   const onHead=(obj,yaw,pitch,rad=HR)=>{ const p=P(yaw,pitch,rad); obj.position.copy(p); obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),p.clone().normalize()); head.add(obj); return obj; };
-  const eyes=[], k=HR/.15;
+  const eyes=[], cheeks=[], closedEyes=[], k=HR/.15;
   for(const s of [-1,1]){
     const e=new THREE.Mesh(new THREE.SphereGeometry(1,8,6),mInk); e.scale.set(.016*k,.021*k,.01); onHead(e,s*.33,kid?-.1:-.05,HR*.995); eyes.push(e);
     const bl=new THREE.Mesh(new THREE.SphereGeometry(1,8,6),mBlush); bl.scale.set(.03*k,.018*k,.005); onHead(bl,s*.58,-.26,HR*.994);
+    cheeks.push(bl);
+    const curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(-.017*k,0,0),
+      new THREE.Vector3(0,.027*k,.002),new THREE.Vector3(.017*k,0,0));
+    const lid=new THREE.Mesh(new THREE.TubeGeometry(curve,8,.0038*k,4,false),mInk);
+    onHead(lid,s*.33,kid?-.1:-.05,HR*1.015);
+    lid.visible=false; lid.userData.keep=lid.userData.noMerge=1;
+    closedEyes.push(lid);
     if(man){ const br=new THREE.Mesh(new THREE.CapsuleGeometry(.007,.03,4,8),old?mHair:mInk); br.rotation.z=Math.PI/2; const bw=new THREE.Group(); bw.add(br); onHead(bw,s*.33,.15,HR*.997); }   // 叔叔：短短的眉毛
     if(man) add(head,new THREE.SphereGeometry(1,8,6),mSkin,[s*HR*.99,-.02,0],[0,0,0],[.018,.03,.024]);                                     // 耳朵
   }
-  { const arc=Math.PI*.6, m=new THREE.Mesh(new THREE.TorusGeometry(.03*k,.0048*k,4,10,arc),mLip); m.rotation.z=Math.PI+(Math.PI-arc)/2; const w=new THREE.Group(); w.add(m); onHead(w,0,kid?-.36:-.3,HR*.993); }
+  const arc=Math.PI*.6, lip=new THREE.Mesh(new THREE.TorusGeometry(.03*k,.0048*k,4,10,arc),mLip);
+  lip.rotation.z=Math.PI+(Math.PI-arc)/2;
+  lip.userData.noMerge=1;
+  const mouth=new THREE.Group(); mouth.add(lip);
+  onHead(mouth,0,kid?-.36:-.3,HR*.993);
+  const grin=new THREE.Shape();
+  grin.moveTo(-.029*k,.002*k);
+  grin.quadraticCurveTo(0,-.008*k,.029*k,.002*k);
+  grin.quadraticCurveTo(.024*k,-.033*k,0,-.033*k);
+  grin.quadraticCurveTo(-.024*k,-.033*k,-.029*k,.002*k);
+  const laugh=new THREE.Mesh(new THREE.ShapeGeometry(grin,8),RESIDENT_LAUGH);
+  onHead(laugh,0,kid?-.43:-.37,HR*1.012);
+  laugh.visible=false; laugh.userData.keep=laugh.userData.noMerge=1;
   // 頭髮
   const ORIG=[], hh=m=>{ head.add(m); ORIG.push(m); return m; };
   if(kind==='阿姨') hh(hairMesh(HR,mHair));                                                     // 鮑伯頭
@@ -85,7 +105,7 @@ function makeDoll(kind){
     sleeves.push(add(g,new THREE.SphereGeometry(.033*W,8,6),mTop));
     sleeves.push(add(g,new THREE.CapsuleGeometry(.026*W,.08*H,4,10),mTop,[0,-.055*H,0]));
     add(g,new THREE.SphereGeometry(.03*W,8,6),mSkin,[0,-.12*H,0]); return g; };
-  const d={man,kid,old,W,glasses,mG,root,hips,body,head,eyes,kind,HR,B,H,HB,pants,sleeves,buns:BUNS,orig:ORIG,mHair,mats:{mSkin,mHair,mTop,mBot},legL:leg((pants?.062:.055)*W,LM),legR:leg(-(pants?.062:.055)*W,LM),HB,HB0:HB,pantsTop,armL:arm(.125*W),armR:arm(-.125*W),ph:Math.random()*6,blink:2+Math.random()*3,ang:0};
+  const d={man,kid,old,W,glasses,mG,root,hips,body,head,eyes,cheeks,closedEyes,mouth,laugh,kind,HR,B,H,HB,pants,sleeves,buns:BUNS,orig:ORIG,mHair,mats:{mSkin,mHair,mTop,mBot},legL:leg((pants?.062:.055)*W,LM),legR:leg(-(pants?.062:.055)*W,LM),HB,HB0:HB,pantsTop,armL:arm(.125*W),armR:arm(-.125*W),ph:Math.random()*6,blink:2+Math.random()*3,ang:0};
   // 穿褲子用的腿（男生、男孩就是原本的腿；大人女生另外做一組，平常藏起來）
   d.legsN=[d.legL,d.legR]; d.legsP=pantsTop?[leg(.062*W,'man'),leg(-.062*W,'man')]:d.legsN; if(pantsTop) for(const l of d.legsP) l.visible=false;
   d.skirt=body.children.find(o=>o.userData.skirt);
@@ -444,12 +464,21 @@ export function spawnDoll({kind,acc='無',hair='原本',glasses=null}){ const d=
   d.mats.mSkin.color.set(pick(PAL.skin)); if(!d.old) d.mats.mHair.color.set(pick(PAL.hair)); d.mats.mTop.color.set(pick(PAL.top)); d.mats.mBot.color.set(pick(PAL.bottom));
   wear(d,acc); setHair(d,hair); d.glasses.visible=acc==='老師'||(glasses==null?d.old:glasses); glassCol(d); d.umb.userData.keep=1;
   for(const e of d.eyes) e.userData.noMerge=1;
+  prepareResidentJoints(d);
   prune(d.root); bake(d.root);
   const obj=new THREE.Group(), inner=new THREE.Group(); inner.scale.setScalar(PSCALE); inner.add(d.root); obj.add(inner); d.root.position.set(0,0,0);
   const h=(d.kid?.5:.74)*PSCALE, hit=new THREE.Mesh(new THREE.BoxGeometry(h*.6,h,h*.6),new THREE.MeshBasicMaterial({visible:false})); hit.position.y=h/2; obj.add(hit);
-  d.ph=Math.random()*6; d.T=0; return {obj,hit,h,d,kind,role:d.cur,kid:d.kid,old:d.old,man:d.man,anim:(dt,st)=>animDoll(d,dt,st)}; }
-/* st：{walk, ph, wave, rain, face}（walk 走路中、ph 步伐、wave 揮手中、rain 下雨） */
-function animDoll(d,dt,st){ d.T+=dt; const T=d.T, walk=st.walk, sw=walk?Math.sin(st.ph):0;
+  d.ph=Math.random()*6; d.T=0;
+  d.motion={sit:0,act:null,time:0,weight:0,requested:null,spent:false,cover:0,talk:0,blush:1,yaw:0,
+    target:new THREE.Vector3(), origin:new THREE.Vector3(), rotation:new THREE.Quaternion(), ground:0};
+  const seatHip=d.HB-residentSeatLower(d);
+  const sitDrop=(seatHip+(d.skirt?.visible?0:d.legL.position.y-.032*d.W))*PSCALE*d.root.scale.y;
+  return {obj,hit,h,d,kind,role:d.cur,kid:d.kid,old:d.old,man:d.man,sitDrop,
+    get sitK(){ return smoothResident(d.motion.sit); },
+    canDo:act=>residentCanDo(d,act,d.umb.visible),
+    anim:(dt,st)=>animDoll(d,dt,st)}; }
+
+function animDoll(d,dt,st={}){ d.T+=dt; const T=d.T, walk=st.walk, sw=walk?Math.sin(st.ph):0;
   d.hips.position.y=d.HB+(walk?Math.abs(Math.cos(st.ph))*.015:0);
   d.body.rotation.z=walk?Math.sin(st.ph)*.045:Math.sin(T*1.6+d.ph)*.015;
   d.legL.rotation.x=sw*.6; d.legR.rotation.x=-sw*.6;
@@ -457,13 +486,281 @@ function animDoll(d,dt,st){ d.T+=dt; const T=d.T, walk=st.walk, sw=walk?Math.sin
   if(d.push){ d.armL.rotation.x=d.armR.rotation.x=-1.1+sw*.03; }
   else { d.armL.rotation.x=umbOn?-.55+sw*.05:-sw*.7; d.armR.rotation.x=d.holding?sw*.15:sw*.7; d.armR.rotation.z=-.18; }
   if(st.wave&&!d.push){ d.armR.rotation.x=-.4; d.armR.rotation.z=-2.3+Math.sin(T*9)*.3; }
+  for(const rig of d.armRigs) rig.arm.position.copy(rig.shoulder);
+  d.head.position.y=.35*d.H+d.HR*.97;
+  d.armL.rotation.y=d.armR.rotation.y=0;
+  d.armL.rotation.z=.18;
+  d.body.rotation.x=d.body.rotation.y=0;
+  d.head.rotation.x=d.head.rotation.z=0;
+  d.head.rotation.y=walk||st.wave?0:Math.sin(T*.7+d.ph)*.25;
+  const pose=applyResidentMotion(d,dt,st,umbOn);
+  residentFace(d,dt,st.face,pose);
   d.holdL.quaternion.copy(d.armL.quaternion).invert();
+  d.hold.quaternion.copy(d.armR.quaternion).invert();
+  updateResidentProp(d,pose);
   if(d.push&&d.wheels) for(const w of d.wheels) w.rotation.x+=walk?dt*6:0;
   if(d.cur==='遛狗'){ const g=d.dog; g.legs.forEach((l,i)=>l.rotation.x=walk?Math.sin(st.ph*1.3+(i%3?0:Math.PI))*.6:0); g.tail.rotation.z=Math.sin(T*9)*.5;
+    const m=d.motion;
+    const rootY=d.root.getWorldPosition(m.origin).y;
+    g.dog.position.y=m.sit>0?(m.ground-rootY)/(PSCALE*d.root.scale.y):0;
     d.root.updateMatrixWorld(true); const a=new THREE.Vector3(0,-.12*d.H,0); d.armR.localToWorld(a); d.root.worldToLocal(a); const b=new THREE.Vector3(0,.15,.1); g.dog.localToWorld(b); d.root.worldToLocal(b);
     const p=g.leash.geometry.attributes.position; p.setXYZ(0,a.x,a.y,a.z); p.setXYZ(1,b.x,b.y,b.z); p.needsUpdate=true; }
-  d.hold.quaternion.copy(d.armR.quaternion).invert();
-  d.head.rotation.y=walk||st.wave?0:Math.sin(T*.7+d.ph)*.25;
-  d.blink-=dt; const closed=d.blink<0; if(d.blink<-.12) d.blink=2.5+Math.random()*2.5;
-  for(const e of d.eyes) e.scale.y=closed?.003:(d.kid?.021*.17/.15:.021);
   if(d.cur==='氣球'){ const bb=d.acc['氣球']&&d.acc['氣球'][0]; if(bb&&bb.userData.bob) bb.userData.bob.position.x=Math.sin(T*1.7+d.ph)*.015; } }
+
+/* Resident building actions. Joint poses are additive to the normal city animation. */
+const RESIDENT_ACTS=new Set(['stand','look','sit','chat','whisper','pray','sweep','crouch','guard','handshake']);
+const RESIDENT_TIMED={pray:4,handshake:1.5};
+const PRAYER_PROPS=new Set(['拐杖','菜籃','氣球']);
+const RESIDENT_DOWN=new THREE.Vector3(0,-1,0);
+const smoothResident=x=>x*x*(3-2*x);
+const limitResident=x=>THREE.MathUtils.clamp(x,0,1);
+const residentSeatLower=d=>d.skirt?.visible?.027:.044;
+
+function residentCanDo(d,act,umbrella){
+  if(!RESIDENT_ACTS.has(act)) return false;
+  if(act==='stand'||act==='look') return true;
+  if(umbrella) return false;
+  if(d.push) return act==='chat';
+  if(d.cur==='遛狗') return act==='sit'||act==='chat';
+  if(d.cur==='清潔隊員') return act==='sweep'||act==='chat';
+  if(PRAYER_PROPS.has(d.cur)) return act==='sit'||act==='chat'||act==='pray';
+  if(act==='sweep') return false;
+  if(act==='guard') return d.cur==='警察';
+  if(act==='whisper') return d.kid&&!d.holding;
+  if(d.holding) return act==='sit'||act==='chat';
+  return true;
+}
+
+function prepareResidentJoints(d){
+  // Keep the original palette when a mesh must remain separate from the baked sleeve.
+  const palette=new Map();
+  function matchBake(mesh){
+    const mat=mesh.material;
+    if(!palette.has(mat)){
+      const color=mat.color.clone().add((mat.emissive||mat.color).clone().multiplyScalar(.5));
+      color.r=Math.min(1,color.r); color.g=Math.min(1,color.g); color.b=Math.min(1,color.b);
+      palette.set(mat,M(color,{roughness:.7,side:THREE.DoubleSide}));
+    }
+    mesh.material=palette.get(mat);
+    mesh.userData.noMerge=1;
+  }
+  d.armRigs=[d.armL,d.armR].map(arm=>{
+    const [,sleeve,hand]=arm.children;
+    for(const part of [sleeve,hand]) matchBake(part);
+    const forearm=add(arm,new THREE.CapsuleGeometry(.023*d.W,.04*d.H,3,8),sleeve.material);
+    forearm.visible=false; forearm.userData.keep=forearm.userData.noMerge=1;
+    return {arm,sleeve,hand,forearm,shoulder:arm.position.clone(),sleeveY:sleeve.position.y,handY:hand.position.y,
+      start:new THREE.Vector3(),reach:new THREE.Vector3(),elbow:new THREE.Vector3(),
+      down:new THREE.Vector3(),bend:new THREE.Vector3(),dir:new THREE.Vector3(),inverse:new THREE.Quaternion()};
+  });
+  for(const leg of [d.legL,d.legR]){
+    const L=leg.userData.L, {rt,rb}=leg.userData, split=.51*L;
+    const [thigh,shoe]=[leg.children[0],leg.children.find(m=>m.position.y< -L)];
+    const middle=THREE.MathUtils.lerp(rt,rb,.51);
+    thigh.geometry.dispose();
+    thigh.geometry=new THREE.CylinderGeometry(rt,middle,split,8);
+    thigh.position.y=-split/2-.005;
+    const knee=new THREE.Group(); knee.position.y=-split-.005;
+    const layers=leg.children.filter(o=>o.isGroup&&o.visible);
+    leg.add(knee);
+    add(knee,new THREE.CylinderGeometry(middle,rb,L-split,8),thigh.material,[0,-(L-split)/2,0]);
+    for(const part of [shoe,...layers]){
+      part.position.y-=knee.position.y;
+      knee.add(part);
+    }
+    matchBake(thigh);
+    leg.userData.knee=knee;
+  }
+  if(d.skirt?.visible){
+    matchBake(d.skirt);
+    const geo=d.skirt.geometry, rest=geo.attributes.position, hem=rest.clone();
+    for(let i=0;i<rest.count;i++){
+      const y=rest.getY(i), t=smoothResident(limitResident((.12-y)/.12));
+      const z=rest.getZ(i);
+      // The front folds over the raised thighs; the waistband stays attached.
+      hem.setXYZ(i,rest.getX(i)*(1+.05*t),y+.026*t*Math.max(0,z/.13),z+.065*t*Math.max(0,z/.13));
+    }
+    geo.morphAttributes.position=[hem]; d.skirt.updateMorphTargets();
+  }
+  const prop=d.acc[d.cur]?.[0];
+  if(prop?.parent===d.hold) d.poseProp={obj:prop,position:prop.position.clone(),rotation:prop.rotation.clone()};
+}
+
+function aimResidentHand(rig,target,weight){
+  const {arm,sleeve,hand,forearm,handY,sleeveY,start,reach,elbow,down,bend,dir,inverse}=rig;
+  sleeve.position.y=sleeveY; sleeve.scale.y=1;
+  hand.position.set(0,handY,0);
+  forearm.visible=Boolean(target&&weight>.001);
+  if(!forearm.visible) return;
+  start.copy(hand.position).applyQuaternion(arm.quaternion).add(arm.position).lerp(target,weight);
+  reach.copy(start).sub(arm.position);
+  const length=-handY;
+  const distance=THREE.MathUtils.clamp(reach.length(),.035,length*1.21);
+  dir.copy(reach).normalize();
+  start.copy(arm.position).addScaledVector(dir,distance);
+  bend.set(Math.sign(arm.position.x),-.65,.12);
+  bend.addScaledVector(dir,-bend.dot(dir)).normalize();
+  const half=distance*.5;
+  const radius=Math.max(length*.605,half+.001);
+  elbow.copy(dir).multiplyScalar(half).addScaledVector(bend,Math.sqrt(radius*radius-half*half)*weight);
+  arm.quaternion.setFromUnitVectors(RESIDENT_DOWN,down.copy(elbow).normalize());
+  inverse.copy(arm.quaternion).invert();
+  hand.position.copy(start).sub(arm.position).applyQuaternion(inverse);
+  elbow.applyQuaternion(inverse);
+  reach.copy(hand.position).sub(elbow);
+  sleeve.position.y=THREE.MathUtils.lerp(sleeveY,elbow.y*.55,weight);
+  sleeve.scale.y=THREE.MathUtils.lerp(1,.70,weight);
+  forearm.position.copy(elbow).addScaledVector(reach,.5);
+  forearm.quaternion.setFromUnitVectors(RESIDENT_DOWN,dir.copy(reach).normalize());
+  forearm.scale.y=reach.length()/.086;
+}
+
+function applyResidentMotion(d,dt,st,umbrella){
+  const m=d.motion;
+  const seated=Boolean(st.sit&&residentCanDo(d,'sit',umbrella));
+  if(m.sit===0) m.ground=d.cur==='遛狗'?d.root.getWorldPosition(m.origin).y:0;
+  m.sit=limitResident(m.sit+(seated?dt:-dt)/.9);
+  const sitK=smoothResident(m.sit);
+  const next=!st.walk&&!st.wave&&residentCanDo(d,st.act,umbrella)&&
+    (!sitK||st.act==='sit'||st.act==='chat'||st.act==='look') ? st.act : null;
+  if(next!==m.requested){ m.requested=next; m.spent=false; }
+  if(!m.act&&next&&!m.spent){ m.act=next; m.time=0; m.spent=true; }
+  if(m.act) m.time+=dt;
+  const duration=RESIDENT_TIMED[m.act]??Infinity;
+  const active=Boolean(m.act&&next===m.act&&m.time<duration);
+  const allowed=residentCanDo(d,m.act,umbrella);
+  m.weight=limitResident(m.weight+(active?dt:-dt)/.36);
+  if(!m.weight&&!active) m.act=null;
+  const k=allowed?smoothResident(m.weight):0, time=Math.min(m.time,duration);
+  m.talk=limitResident(m.talk+(st.talk&&!d.push?dt:-dt)/.23);
+  const canCover=!d.push&&!umbrella&&!st.walk&&!st.wave;
+  m.cover=limitResident(m.cover+(st.cover&&canCover?dt:-dt)/.30);
+  const talk=smoothResident(m.talk);
+  const yawActions=m.act==='look'||m.act==='chat'||m.act==='whisper'||m.act==='handshake'||m.act==='crouch';
+  let goal=0;
+  if(k&&yawActions&&st.look){
+    d.root.getWorldPosition(m.origin);
+    d.root.getWorldQuaternion(m.rotation).invert();
+    m.target.set(st.look.x-m.origin.x,0,st.look.z-m.origin.z).applyQuaternion(m.rotation);
+    if(m.target.lengthSq()>.00001) goal=THREE.MathUtils.clamp(Math.atan2(m.target.x,m.target.z),-.85,.85);
+  }
+  m.yaw=THREE.MathUtils.damp(m.yaw,goal,7,dt);
+  d.head.rotation.y=THREE.MathUtils.lerp(d.head.rotation.y,m.yaw*.72,k&&yawActions?k:0);
+  if(k&&yawActions&&!d.push) d.body.rotation.y=m.yaw*.23*k;
+  const crouch=m.act==='crouch'?k:0;
+  d.hips.position.y-=residentSeatLower(d)*sitK+crouch*(d.legL.userData.L*.24+.012);
+  for(const leg of [d.legL,d.legR]){
+    const skirt=Boolean(d.skirt?.morphTargetInfluences);
+    leg.position.z=(skirt?.026:0)*sitK;
+    leg.rotation.x=THREE.MathUtils.lerp(leg.rotation.x,-1.39,sitK)-.76*crouch;
+    leg.userData.knee.rotation.x=(skirt?1.39:1.31)*sitK+1.46*crouch;
+  }
+  if(d.skirt?.morphTargetInfluences) d.skirt.morphTargetInfluences[0]=Math.max(sitK,crouch*.67);
+  let left=null,right=null, handWeight=k, sweep=0, park=0;
+  const chest=.275*d.H;
+  const target=(x,y,z)=>new THREE.Vector3(x,y,z);
+  switch(m.act){
+    case 'look': {
+      const cycle=(time+(d.ph%1.8))%(3.25+d.ph%1.65);
+      const nod=cycle>2.15&&cycle<3.15;
+      d.head.rotation.y+=k*(nod?0:.18*Math.sin(time*1.45));
+      if(nod) d.head.rotation.x+=k*.29*Math.sin((cycle-2.15)*Math.PI*2)**2;
+      break;
+    }
+    case 'chat':
+      d.head.rotation.z-=m.yaw*.26*k*(1-talk);
+      d.head.rotation.x+=k*talk*(.10+.055*Math.sin(time*3.5));
+      break;
+    case 'whisper':
+      d.body.rotation.z-=k*m.yaw*.33;
+      d.head.rotation.z-=k*m.yaw*.20;
+      d.head.rotation.x+=.15*k;
+      break;
+    case 'pray': {
+      const bow=limitResident((time-.35)/3.25);
+      d.head.rotation.x+=k*.36*Math.sin(bow*3*Math.PI)**2;
+      if(k){
+        d.armL.position.z=d.armR.position.z=.031*k;
+        left=target(.027,chest,.142); right=target(-.027,chest,.142);
+      }
+      park=PRAYER_PROPS.has(d.cur)?k:0;
+      break;
+    }
+    case 'sweep':
+      sweep=k*Math.sin(time*4.6);
+      d.body.rotation.y+=.31*sweep;
+      d.body.rotation.x+=.11*k;
+      d.armR.rotation.x-=.31*k;
+      d.armR.rotation.z+=.46*sweep;
+      break;
+    case 'crouch':
+      d.head.rotation.x+=.19*k;
+      d.body.rotation.x+=.13*k;
+      d.armL.rotation.x-=.49*k;
+      d.armR.rotation.x-=.49*k;
+      break;
+    case 'guard': {
+      d.head.rotation.y*=1-k;
+      d.body.rotation.z*=1-k;
+      const cycle=time%(8+d.ph%4), salute=cycle>.55&&cycle<1.85?smoothResident(Math.sin((cycle-.55)*Math.PI/1.3)):0;
+      if(salute>.001){
+        handWeight*=salute;
+        d.head.rotation.x+=.26*handWeight;
+        d.head.rotation.z+=.28*handWeight;
+        d.head.position.y-=.027*handWeight;
+        d.armR.position.y+=.062*d.H*handWeight;
+        d.armR.position.z+=.026*handWeight;
+        right=target(-.137*d.W,.51*d.H,.10);
+      }
+      break;
+    }
+    case 'handshake':
+      if(k) right=target(-.105*d.W+.06*m.yaw,chest+.024*Math.sin(time*Math.PI*4/1.5),.141);
+      break;
+  }
+  const speech=m.act==='whisper'?k:m.act==='chat'&&!d.push?k*talk:0;
+  const cheek=Math.max(speech,canCover?smoothResident(m.cover):0);
+  if(cheek>.001){
+    const useLeft=d.holding, side=useLeft?1:-1;
+    d.head.rotation.x+=.13*cheek;
+    d.head.rotation.z-=side*.06*cheek;
+    // Keep the hand beside the lower cheek and clear of hair and eyewear.
+    const p=d.head.localToWorld(target(side*d.HR*.63,-d.HR*.78,d.HR*.75));
+    d.body.worldToLocal(p);
+    if(useLeft) left=p; else right=p;
+    handWeight=cheek;
+  }
+  aimResidentHand(d.armRigs[0],left,handWeight);
+  aimResidentHand(d.armRigs[1],right,handWeight);
+  return {park,sweep,face:active?(m.act==='pray'?'calm':['chat','whisper','handshake'].includes(m.act)?'smile':undefined):undefined};
+}
+
+function updateResidentProp(d,{park,sweep}){
+  if(!d.poseProp) return;
+  const {obj,position,rotation}=d.poseProp;
+  obj.position.copy(position);
+  obj.rotation.copy(rotation);
+  if(park){
+    const p=d.motion.target.set(-.225*d.W,.174*d.H,.095);
+    d.body.localToWorld(p);
+    d.hold.worldToLocal(p);
+    obj.position.lerp(p,park);
+  }
+  if(sweep) obj.rotation.z+=sweep*.49;
+}
+
+function residentFace(d,dt,requested,{face}){
+  const mood=requested??face??'normal', m=d.motion, shut=mood==='calm'||mood==='laugh';
+  d.mouth.visible=mood!=='laugh'; d.mouth.scale.x=mood==='smile'?1.27:1;
+  d.laugh.visible=mood==='laugh';
+  d.blink-=dt;
+  const blink=d.blink<0&&!shut;
+  if(d.blink<-.12) d.blink=2.5+Math.random()*2.5;
+  for(const e of d.eyes){ e.visible=!shut; e.scale.y=blink?.003:(d.kid?.021*.17/.15:.021); }
+  for(const e of d.closedEyes){ e.visible=shut; e.rotateZ((mood==='calm'?Math.PI:0)-(e.userData.lidAngle||0)); e.userData.lidAngle=mood==='calm'?Math.PI:0; }
+  const target=mood==='laugh'?1.34:mood==='smile'?1.17:1;
+  const step=dt*.34/.2;
+  m.blush+=THREE.MathUtils.clamp(target-m.blush,-step,step);
+  const scale=d.HR/.15*m.blush;
+  for(const c of d.cheeks){ c.scale.x=.03*scale; c.scale.y=.018*scale; }
+}
