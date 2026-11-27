@@ -264,6 +264,7 @@ import { TEA_LV, TEA_TOP } from './s2_farm2.js';
 import { ORCHARD_LV, ORCHARD_TOP } from './s2_orchard.js';
 import { BANK_LV, BANK_TOP } from './s2_civic.js';
 import { ART_LV, ART_TOP } from './s2_art.js';   // 11-19 美術館改成現代風格
+import { GYM_LV, GYM_TOP } from './s3_gym.js';   // 11-27 運動中心（2 格）
 import { POLICE_LV, POLICE_TOP, TEMPLE_LV, TEMPLE_TOP, STATIONERY_LV, STATIONERY_TOP } from './s2_other.js';
 import { LIBRARY_LV, CLINIC_LV, HOSPITAL_LV, BREAKFAST_LV, MARKET_LV, CONV_LV, PARK_LV } from './s1_more.js';
 
@@ -509,8 +510,8 @@ function plotGlow(pid,mat){ const p=PLOTS[pid], c=tilePos(p.tile), g=new THREE.S
   const m=new THREE.Mesh(g,mat); m.position.set(c.x,.095,c.z+(p.half?p.side*.06:0)); m.renderOrder=2; return m; }
 
 /* ---------- 建築種類 → 怎麼畫、名牌多高 ---------- */
-const S1B={ power:POWER_LV, water:WATER_LV, sewage:SEWAGE_LV, trash:TRASH_LV, home:HOME_LV, garden:GARDEN_LV, ranch:RANCH_LV, library:LIBRARY_LV, clinic:CLINIC_LV, hospital:HOSPITAL_LV, breakfast:[BREAKFAST_LV[1]], market:MARKET_LV, conv:CONV_LV, park:PARK_LV, observatory:ASTRO_LV, pier:PIER_LV, train:STATION_LV, firestation:FIRE_LV, policebox:POLICE_LV, temple:TEMPLE_LV, stationery:STATIONERY_LV, art:ART_LV, bank:BANK_LV, orchard:ORCHARD_LV, tea:TEA_LV, bakery:[BAKERY_LV[1]], nightmarket:[NIGHT_LV[1]], fastfood:FASTFOOD_LV, icecream:ICECREAM_LV, burger:FASTFOOD_LV, japanese:JAPANESE_LV };
-const S1TOP={ power:[0,3.4,3.6,3.6], water:[0,2.8,3.0,3.6], sewage:[0,2.0,2.4,4.6], trash:[0,3.2,4.6], home:[0,2.6,2.8,4.8], garden:[0,2.2,3.8], ranch:[0,3.2,3.6], library:[0,3.1,4.2,5.3], clinic:[0,3.0], hospital:[0,4.1,6.2,8.4], breakfast:[0,4.2], market:[0,2.9,2.9,4.0], conv:[0,2.9], park:[0,2.3,2.3], observatory:ASTRO_TOP, pier:PIER_TOP, train:STATION_TOP, firestation:FIRE_TOP, policebox:POLICE_TOP, temple:TEMPLE_TOP, stationery:STATIONERY_TOP, art:ART_TOP, bank:BANK_TOP, orchard:ORCHARD_TOP, tea:TEA_TOP, bakery:[0,BAKERY_TOP[2]], nightmarket:[0,NIGHT_TOP[2]], fastfood:FASTFOOD_TOP, icecream:ICECREAM_TOP, burger:FASTFOOD_TOP, japanese:JAPANESE_TOP };
+const S1B={ power:POWER_LV, water:WATER_LV, sewage:SEWAGE_LV, trash:TRASH_LV, home:HOME_LV, garden:GARDEN_LV, ranch:RANCH_LV, library:LIBRARY_LV, clinic:CLINIC_LV, hospital:HOSPITAL_LV, breakfast:[BREAKFAST_LV[1]], market:MARKET_LV, conv:CONV_LV, park:PARK_LV, observatory:ASTRO_LV, pier:PIER_LV, train:STATION_LV, firestation:FIRE_LV, policebox:POLICE_LV, temple:TEMPLE_LV, stationery:STATIONERY_LV, art:ART_LV, gym:GYM_LV, bank:BANK_LV, orchard:ORCHARD_LV, tea:TEA_LV, bakery:[BAKERY_LV[1]], nightmarket:[NIGHT_LV[1]], fastfood:FASTFOOD_LV, icecream:ICECREAM_LV, burger:FASTFOOD_LV, japanese:JAPANESE_LV };
+const S1TOP={ power:[0,3.4,3.6,3.6], water:[0,2.8,3.0,3.6], sewage:[0,2.0,2.4,4.6], trash:[0,3.2,4.6], home:[0,2.6,2.8,4.8], garden:[0,2.2,3.8], ranch:[0,3.2,3.6], library:[0,3.1,4.2,5.3], clinic:[0,3.0], hospital:[0,4.1,6.2,8.4], breakfast:[0,4.2], market:[0,2.9,2.9,4.0], conv:[0,2.9], park:[0,2.3,2.3], observatory:ASTRO_TOP, pier:PIER_TOP, train:STATION_TOP, firestation:FIRE_TOP, policebox:POLICE_TOP, temple:TEMPLE_TOP, stationery:STATIONERY_TOP, art:ART_TOP, gym:GYM_TOP, bank:BANK_TOP, orchard:ORCHARD_TOP, tea:TEA_TOP, bakery:[0,BAKERY_TOP[2]], nightmarket:[0,NIGHT_TOP[2]], fastfood:FASTFOOD_TOP, icecream:ICECREAM_TOP, burger:FASTFOOD_TOP, japanese:JAPANESE_TOP };
 const TOPS=[0,3.2,3.6,4.2,5.0,5.5], TOPM=[0,2.4,2.9,3.4,3.9,4.3];
 const TOPH=(t,lv)=>S1B[t]?S1TOP[t][lv]:t==='mayor'?TOPM[lv]:TOPS[lv]*(t==='school'?.85:1);
 /* 整格建築的六角底盤（家長 11-13 09:46）：市政廳草地、市長的家淺石板、學校米色、菜園牧場泥土色；四座基礎建設不鋪；一之一 7 棟自己畫 */
@@ -686,7 +687,7 @@ canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){followTouc
 canvas.addEventListener('pointermove',e=>{if(!followTouches.has(e.pointerId))return;const a=[...followTouches.values()];followTouches.set(e.pointerId,[e.clientX,e.clientY]);const b=[...followTouches.values()];if(follow&&a.length===2){const d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]),n=Math.hypot(b[0][0]-b[1][0],b[0][1]-b[1][1]);if(n>5&&d>5)zoomFollow(d/n);}});
 for(const ev of ['pointerup','pointercancel','pointerleave'])canvas.addEventListener(ev,e=>{followTouches.delete(e.pointerId);if(!followTouches.size)followPinch=false;});
 // Character faces local +Z; its anatomical right is local -X.
-const FOLLOW_AZIMUTH=Math.PI/4, FOLLOW_ELEVATION=25*Math.PI/180, FOLLOW_DISTANCE=3.6;
+const FOLLOW_AZIMUTH=Math.PI/4, FOLLOW_ELEVATION=8*Math.PI/180, FOLLOW_DISTANCE=3.6;   /* 家長 11-27 12:23：跟著小人物的鏡頭低一點、接近平視（原本 25 度） */
 const followTarget=new THREE.Vector3(), followOffset=new THREE.Vector3(), followWant=new THREE.Vector3();
 function followPerson(p){ fly=null; selPid=null; setHi([]);
   if(!follow) follow={p,enabled:controls.enabled,distance:FOLLOW_DISTANCE}; else follow.p=p;
