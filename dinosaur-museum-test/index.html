@@ -10,6 +10,10 @@
 html,body{margin:0;width:100%;height:100%;overflow:hidden}
 body{background:linear-gradient(#c8d9de,#e8e4d8)}
 canvas{display:block;width:100%;height:100%}
+.fallback{position:fixed;inset:0;z-index:0;display:grid;place-items:center;padding:66px 12px 48px;pointer-events:none}
+.fallback svg{display:block;width:min(94vw,82vh);max-height:84vh;filter:drop-shadow(0 12px 20px rgba(55,68,57,.14))}
+#view{position:fixed;inset:0;z-index:1;background:transparent}
+header,.controls,footer{z-index:2}
 header{position:fixed;top:16px;left:18px;padding:12px 16px;border-radius:16px;background:#ffffffd9;box-shadow:0 3px 16px #40565b26;backdrop-filter:blur(8px)}
 h1{font-size:20px;margin:0 0 4px}p{font-size:13px;margin:0;color:#66727a}
 .controls{position:fixed;right:18px;top:16px;border:0;border-radius:12px;background:#ffffffdc;padding:9px 13px;color:#435b5b;font:inherit;cursor:pointer;box-shadow:0 3px 12px #40565b20}
@@ -20,6 +24,53 @@ footer{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background
 </script>
 </head>
 <body>
+<div class="fallback" id="fallback" role="img" aria-label="單格六角恐龍館，有三角龍和暴龍">
+<svg viewBox="0 0 900 760" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="roof" x2="0" y2="1"><stop stop-color="#75b7b1"/><stop offset="1" stop-color="#4e9295"/></linearGradient></defs>
+<polygon points="450,25 807,220 807,546 450,750 93,546 93,220" fill="#cdbd9f" stroke="#ad9873" stroke-width="13" stroke-linejoin="round"/>
+<polygon points="450,52 777,231 777,531 450,716 123,531 123,231" fill="#91c875" stroke="#f1e5cf" stroke-width="8" stroke-linejoin="round"/>
+<path d="M450 671 L450 470 Q450 408 450 360 L450 286" fill="none" stroke="#e8dfce" stroke-width="54" stroke-linecap="round"/>
+<path d="M450 671 L450 470 Q450 408 450 360 L450 286" fill="none" stroke="#d5c8b3" stroke-width="3" stroke-dasharray="8 15" stroke-linecap="round"/>
+<!-- small museum -->
+<rect x="316" y="165" width="268" height="137" rx="18" fill="#f1e2c4" stroke="#d1b894" stroke-width="5"/>
+<polygon points="294,180 450,91 606,180" fill="url(#roof)" stroke="#407d80" stroke-width="7" stroke-linejoin="round"/>
+<rect x="346" y="204" width="42" height="54" rx="14" fill="#8bc5cc" stroke="#fff4df" stroke-width="6"/>
+<rect x="512" y="204" width="42" height="54" rx="14" fill="#8bc5cc" stroke="#fff4df" stroke-width="6"/>
+<rect x="422" y="218" width="56" height="84" rx="18" fill="#805b45"/>
+<rect x="355" y="151" width="190" height="39" rx="14" fill="#fff5e6" stroke="#579e9b" stroke-width="4"/>
+<text x="450" y="178" text-anchor="middle" font-size="25" font-family="sans-serif" font-weight="700" fill="#3f7374">恐龍館</text>
+<!-- trees -->
+<g fill="#62a856"><circle cx="208" cy="293" r="33"/><circle cx="235" cy="276" r="29"/><circle cx="190" cy="265" r="26"/><circle cx="696" cy="286" r="32"/><circle cx="670" cy="270" r="28"/><circle cx="713" cy="257" r="25"/></g>
+<g stroke="#936a49" stroke-width="11" stroke-linecap="round"><path d="M211 303v42"/><path d="M691 297v44"/></g>
+<!-- Triceratops: feet, body, tail, frill, head, horns -->
+<g stroke="#547f49" stroke-width="6" stroke-linejoin="round">
+<path d="M249 487 Q207 455 174 467 Q204 499 236 507" fill="#79ad59"/>
+<ellipse cx="292" cy="474" rx="102" ry="67" fill="#82b85c"/>
+<rect x="226" y="506" width="35" height="70" rx="15" fill="#6f9e50"/>
+<rect x="301" y="512" width="35" height="68" rx="15" fill="#6f9e50"/>
+<ellipse cx="382" cy="478" rx="63" ry="61" fill="#659b50"/>
+<ellipse cx="425" cy="488" rx="52" ry="43" fill="#82b85c"/>
+<path d="M398 455 L388 409 L412 449 M433 457 L463 423 L448 468" fill="#f5e5c0" stroke="#e4d1aa" stroke-width="5"/>
+<circle cx="442" cy="480" r="6" fill="#303b33" stroke="none"/>
+</g>
+<!-- T-rex -->
+<g stroke="#99533f" stroke-width="6" stroke-linejoin="round">
+<path d="M620 481 Q677 450 738 475 Q704 502 652 511" fill="#c96f52"/>
+<ellipse cx="621" cy="487" rx="78" ry="65" fill="#c96f52"/>
+<rect x="575" y="523" width="38" height="66" rx="16" fill="#b96349"/>
+<rect x="638" y="522" width="38" height="67" rx="16" fill="#b96349"/>
+<ellipse cx="586" cy="417" rx="46" ry="58" fill="#cf7654"/>
+<ellipse cx="547" cy="389" rx="69" ry="42" fill="#d47b5b"/>
+<path d="M495 401 Q551 430 601 400 L588 425 Q538 442 505 416Z" fill="#f6d9ad" stroke="#f6d9ad"/>
+<path d="M523 423l9 12 9-10 10 12 10-12 10 11 10-12" fill="#fff9ef" stroke="none"/>
+<path d="M571 454 L555 473 L589 474" fill="none" stroke="#b96349" stroke-width="12" stroke-linecap="round"/>
+<circle cx="533" cy="376" r="6" fill="#2f3432" stroke="none"/>
+</g>
+<!-- fossil patch -->
+<ellipse cx="450" cy="609" rx="84" ry="34" fill="#d7c9b2"/>
+<g stroke="#eee1c6" stroke-width="8" stroke-linecap="round"><path d="M395 609h110"/><path d="M416 594l-13-15m38 15-8-19m33 19 13-18m14 33 16-11"/></g>
+<g fill="#f3d16e"><circle cx="166" cy="403" r="7"/><circle cx="186" cy="419" r="6"/><circle cx="720" cy="393" r="7"/><circle cx="702" cy="413" r="6"/></g>
+</svg></div>
 <canvas id="view"></canvas>
 <header><h1>恐龍館｜獨立測試</h1><p>一格六角地・三角龍與暴龍戶外園區</p></header>
 <button class="controls" id="reset">重設視角</button>
@@ -158,5 +209,5 @@ const exhibit=drawDinosaurMuseum();
 function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();
 document.getElementById('reset').addEventListener('click',()=>{camera.position.set(10,9,12);controls.target.set(0,1,0);controls.update();});
-renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
+let firstFrame=false; renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);if(!firstFrame){firstFrame=true;document.getElementById('fallback').style.display='none';}});
 </script></body></html>
