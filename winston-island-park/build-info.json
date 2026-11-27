@@ -6,16 +6,16 @@
     "Entrance plaza steps.002",
     "Entrance plaza steps.003"
   ],
-  "trianglesBeforeMobileOptimization": 245954,
-  "materialBatchesBeforeMobileOptimization": 76,
+  "trianglesBeforeMobileOptimization": 271942,
+  "materialBatchesBeforeMobileOptimization": 83,
   "verifiedPreservedMeshes": 796,
   "standardGLB": {
-    "triangles": 100160,
-    "bytes": 6445172
+    "triangles": 111898,
+    "bytes": 7295004
   },
   "mobileGLB": {
-    "triangles": 100340,
-    "drawCalls": 62,
-    "bytes": 1130492
+    "triangles": 112078,
+    "drawCalls": 70,
+    "bytes": 1289408
   }
 }

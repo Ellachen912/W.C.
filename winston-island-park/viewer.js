@@ -42,7 +42,7 @@ try {
   const views = {
     overview: { target: [0, .15, 0], offset: [11, 22, 16], span: 18.2 },
     stadium: { target: [0, .25, -4.44], offset: [7, 13, 9], span: 10.7 },
-    park: { target: [0, .15, 4.44], offset: [6, 12, 9], span: 10.6 },
+    park: { target: [0, .15, 4.44], offset: [6, 12, 9], span: 9.6 },
   };
 
   function draw() {
@@ -90,10 +90,10 @@ try {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   let gltf;
   try {
-    gltf = await loader.loadAsync('./park-mobile.glb');
+    gltf = await loader.loadAsync('./park-mobile.glb?v=village');
   } catch (error) {
     console.warn('Mobile model failed; loading the standard GLB.', error);
-    gltf = await loader.loadAsync('./park.glb');
+    gltf = await loader.loadAsync('./park.glb?v=village');
   }
   gltf.scene.traverse(object => {
     if (object.isMesh) {
