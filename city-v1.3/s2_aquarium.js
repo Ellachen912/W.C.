@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROOT, anims, setRoot, textPlate } from './lib.js';
+import { stripAquariumGround, aquariumPad, aquariumLift, aquariumSign, aquariumInnerSign, whaleSpout } from './aq_fix.js';   // 家長 11-27 14:45：拿掉模型自帶地台、改鋪我們的石板地、模型墊高
 
-const url = new URL('./models/aquarium-animated.glb?v=swim1', import.meta.url);
+const url = new URL('./models/aquarium-animated.glb?v=slim1', import.meta.url);
 const loader = new GLTFLoader();
 const mixers = new WeakMap();
 let assetBytes;
@@ -27,8 +28,9 @@ export function drawAquarium() {
   exhibit.userData.aquarium = 'loading';
   // The GLB is already batched. Preserve animated parents and separately sorted acrylic panes.
   exhibit.userData.moving = true;
+  aquariumPad();   // 我們自己的六角石板地（畫在 ROOT＝這塊地上，會被合併；海生館模型本身另外放、不合併）
   lot.add(exhibit);
-  let mixer, duration = 0;
+  let mixer, duration = 0, spout = null;
   let cancelled = false;
   mixers.set(exhibit, () => {
     cancelled = true;
@@ -37,6 +39,7 @@ export function drawAquarium() {
   });
   anims.push(time => {
     if (mixer) mixer.setTime(time % duration);
+    spout?.update(time);   // 鯨魚偶爾噴水
   });
 
   loadBytes()
@@ -61,6 +64,10 @@ export function drawAquarium() {
         object.castShadow = false;
         object.receiveShadow = true;
       });
+      const { minY } = stripAquariumGround(gltf.scene);
+      gltf.scene.position.y = aquariumLift(minY);
+      gltf.scene.add(aquariumSign(), aquariumInnerSign());   // 英文招牌換中文
+      spout = whaleSpout(); gltf.scene.add(spout.group);   // 家長 11-27：鯨魚頭頂偶爾噴水柱（不高）
       exhibit.add(gltf.scene);
       mixer = new THREE.AnimationMixer(exhibit);
       duration = clip.duration;

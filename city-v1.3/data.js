@@ -90,8 +90,8 @@ export const TYPES={
   street:T('老街','biz',{req:[['home',1],['conv',1]],soon:1}),
   // 文化（家長 11-20 23:36：運動區併進文化區）
   art:T('美術館','culture',{maxLv:1,cost:[0,7],req:[['library',1]],stage:2}),
-  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍館','culture',{req:[['art',1]],soon:1}), aquarium:T('海生館','culture',{maxLv:1,req:[['pier',1],['market',1]]}),
-  gym:T('運動中心','culture',{size:2,maxLv:2,cost:[0,5,4],req:[['school',1]],cap:'hall',stage:2}),   /* 家長 11-27 12:17：改成 2 格（Lv1 運動公園：專業跳水游泳池＋網球場；Lv2 加木星棒球場） */
+  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍館','culture',{req:[['art',1]],soon:1}), aquarium:T('海生館','culture',{maxLv:1,cost:[0,7],req:[['pier',1],['market',1]],stage:2,hallLv:4}),
+  gym:T('運動中心','culture',{size:2,maxLv:2,cost:[0,5,4],req:[['school',1]],cap:'hall',stage:2,hallLv:4}),   /* 家長 11-27 12:17：改成 2 格（Lv1 運動公園：專業跳水游泳池＋網球場；Lv2 加木星棒球場） */
   botanic:T('植物園','nature',{req:[['water',1]],soon:1}), playground:T('兒童遊戲公園','nature',{maxLv:2,req:[['school',1]],soon:1}), zoo:T('動物園','nature',{size:2,req:[['ranch',2]],soon:1}),
   observatory:T('天文台','astro',{size:2,cost:C(5,3),req:[['library',1]],cap:'hall',stage:2}),
   // 醫療與安全（家長 11-20 23:16：醫院改成市政廳 Lv3 就開放）
@@ -126,7 +126,7 @@ export const shownName=(B,pid)=>B[pid].name||nameOfT(B[pid].t);
 export const FOOD_SHOPS=Object.keys(TYPES).filter(t=>TYPES[t].zone==='food'&&t!=='nightmarket');
 /* 這一級要先完成的條件清單：Lv1 加上「第二階段要市政廳 Lv3」；升級加上「不超過市政廳」 */
 export function reqList(t,lv){ const ty=TYPES[t], r=ty.req, out=[];
-  if(lv===1&&ty.stage===2) out.push(['hall',3]);
+  if(lv===1&&ty.stage===2) out.push(['hall',ty.hallLv||3]);   // hallLv：家長 11-27 15:27 海生館、運動中心要市政廳 Lv4
   const list=Array.isArray(r)?(lv===1?r:[]):(r[lv]||[]); out.push(...list);
   if(lv>=2&&ty.cap) out.push([ty.cap,lv]);
   const seen=new Set(); return out.filter(x=>{ const k=JSON.stringify(x); if(seen.has(k)) return false; seen.add(k); return true; }); }

@@ -39,3 +39,4 @@
 - 對話框（家長 12:48）：.talk 加 width:max-content（跟隨時不再擠成一直條）；life.js 把對話框夾在畫面內、不蓋到左上城市名牌，位置平滑跟隨、取整數像素（不晃）。
 - 膚色（家長 12:52、12:54）：people.js 膚色清單拿掉 #ffd9c0（太白），改成 #f2c4a2、#e8b48e（新）、#d9a27c；固定用 #ffd9c0 的阿姨、小孩、小女孩、奶奶改 #f2c4a2；vip_avery.js Avery 膚色 #ffdcc6 → #f2c4a2。
 - 測試：無頭瀏覽器（非實機）。遊戲載入無錯誤、運動中心 Lv1／Lv2、手機大小畫面點小人物對話框正常。
+- 11-27 15:30 海生館整合（家長在 Artifact 確認後上傳）：新增 aq_fix.js（stripAquariumGround 移除 City soil/sidewalk/sports zone、aquariumPad 石板地、aquariumLift 墊高、中文招牌、whaleSpout 鯨魚噴水：每 7 秒噴 1.8 秒、高約 0.3）；s2_aquarium.js 接上；models/aquarium-animated.glb 換成瘦身版（工具 aq_slim.py：拿掉地台與英文字、正面材質頂點沿法線外推 1.5mm 修 z-fighting、珊瑚減面、頂點色合併材質，約 34 個 draw call、3.65 萬三角形）。data.js：aquarium cost [0,7]、stage 2；reqList 支援 hallLv，海生館與運動中心 hallLv:4。
