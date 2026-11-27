@@ -28,12 +28,12 @@ function rock(g,x,y,z,a,b,c,color) {
   const o=L.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),L.mat(color,{flatShading:true})),g);
   o.position.set(x,y,z);o.scale.set(a,b,c);return o;
 }
-function trail(lot,points) {
+function trail(lot,points,y=.063) {
   const result=[];
   for (const [side,order] of [[-1,points],[1,[...points].reverse()]]) {
     for (const [x,z,w] of order) result.push([x+w*side,z]);
   }
-  slab(lot,result,.014,.063,'#ecd8aa');
+  slab(lot,result,.014,y,'#ecd8aa');
 }
 function fenced(lot,points) {
   const c='#b58157';
@@ -46,10 +46,13 @@ function fenced(lot,points) {
     for(const y of [.20,.33]) branch(lot,[x,y,z],[X,y,Z],.025,c);
   }
 }
-function terrain(lot) {
+function ground(lot) {
   slab(lot,hex(4.2),.25,-.255,'#aa805e');
   slab(lot,hex(4.2),.055,-.005,'#e4cea4');
   slab(lot,hex(3.9),.025,.041,'#a9ca82');
+}
+function terrain(lot) {
+  ground(lot);
   trail(lot,[[0,3.61,.36],[-.05,2.94,.36],[-.13,2.43,.48],[-.03,1.94,.48],[.18,1.39,.40],[.09,.86,.39],[.03,.32,.37],[.08,-.23,.38],[.09,-.78,.45],[.17,-1.20,.43]]);
   L.setRoot(lot);
   const sign='#ad7952';
@@ -87,8 +90,92 @@ function terrain(lot) {
   L.setRoot(null);
 }
 
+// Rings taper the fossil from the broad brow to the narrow snout.
+function skull(lot) {
+  const bone='#f1d4a4', jaw='#c4986e', socket='#58483b';
+  const rings=[
+    [1.45,.82,3.05,.48],
+    [1.95,1.09,3.11,.54],
+    [2.29,.84,2.91,.37],
+    [2.79,.69,2.69,.29],
+    [3.04,.56,2.63,.22],
+  ];
+  const points=[],indices=[];
+  for(const [z,w,y,h] of rings){
+    for(const [u,v] of [[1,0],[.72,.8],[-.72,.8],[-1,0],[-.78,-1],[.78,-1]]){
+      points.push(w*u,y+h*v,z);
+    }
+  }
+  for(let row=0;row<rings.length-1;row++){
+    for(let j=0;j<6;j++){
+      const a=row*6+j,b=row*6+(j+1)%6;
+      indices.push(a,b,b+6,a,b+6,a+6);
+    }
+  }
+  for(let j=1;j<5;j++){
+    const end=(rings.length-1)*6;
+    indices.push(0,j+1,j,end,end+j,end+j+1);
+  }
+  const mesh=new THREE.BufferGeometry();
+  mesh.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
+  mesh.setIndex(indices);
+  const faces=mesh.toNonIndexed();
+  faces.computeVertexNormals();
+  L.add(new THREE.Mesh(faces,L.mat(bone)),lot);
+  for(const side of [-1,1]){
+    const x=side*.98;
+    branch(lot,[x,.16,2.34],[side*1.04,2.44,1.99],.145,jaw);
+    rock(lot,x,.13,2.34,.28,.105,.23,jaw);
+    rock(lot,side*.96,2.72,2.08,.23,.38,.26,bone);
+    const eye=rock(lot,side*.91,3.17,2.17,.20,.21,.19,socket);
+    eye.rotation.y=side*.36;
+    const brow=rock(lot,side*.92,3.34,2.11,.23,.105,.24,bone);
+    brow.rotation.z=-side*.27;
+    rock(lot,side*.30,2.70,3.051,.111,.072,.041,socket);
+    for(let i=0;i<5;i++){
+      const z=2.01+i*.205;
+      const tooth=1-.13*i;
+      L.cyl(.106*tooth,.021,.23*tooth,'#fff3d9',side*(.83-i*.075),2.35-i*.028,z,5,lot);
+    }
+  }
+  for(const x of [-.36,-.13,.13,.36]){
+    L.cyl(.092,.022,.176,'#fff3d9',x,2.28,2.98,5,lot);
+  }
+}
+
+function museum(lot) {
+  ground(lot);
+  const plaster='#dcb783', trim='#8c6752', glass='#557b73';
+  trail(lot,[[0,3.61,.47],[0,2.95,.56],[0,1.50,.83]]);
+  L.setRoot(lot);
+  L.rbox(4.20,.19,3.20,'#b99470',0,.062,-.21,.09,lot);
+  L.rbox(4.04,2.07,3.02,plaster,0,.23,-.22,.16,lot);
+  L.rbox(4.41,.22,3.27,'#5a7163',0,2.22,-.25,.08,lot);
+  L.rbox(3.77,.24,2.69,'#7b8d72',0,2.42,-.43,.11,lot);
+  L.rbox(1.60,1.91,.17,'#365955',0,.265,1.29,.066,lot);
+  for(const x of [-.36,.36]){
+    L.rbox(.64,1.49,.09,glass,x,.30,1.40,.043,lot);
+    L.rbox(.035,.22,.05,'#edcc8c',x*.42,.95,1.462,.014,lot);
+  }
+  for(const side of [-1,1]){
+    const x=side*1.47;
+    L.rbox(.69,1.12,.09,trim,x,.63,1.306,.044,lot);
+    L.rbox(.58,.99,.085,glass,x,.699,1.36,.04,lot);
+    L.rbox(.585,.042,.10,'#ead3a6',x,1.235,1.41,.016,lot);
+    for(const z of [-1.20,-.23,.74]){
+      L.rbox(.09,1.13,.68,trim,side*2.02,.65,z,.044,lot);
+      L.rbox(.085,1.00,.56,glass,side*2.06,.72,z,.04,lot);
+    }
+    L.tree(side*2.46,-.48,.65,'#78a870');
+    rock(lot,side*1.64,.18,2.33,.25,.14,.19,'#98b67c');
+  }
+  skull(lot);
+  L.textPlate('恐龍博物館',1.23,.22,'#ffedc7','#574b3f',0,2.03,1.497);
+  L.setRoot(null);
+}
+
 async function mount(scene,name,x,z,yaw,length) {
-  const {scene:model,animations}=await loader.loadAsync(new URL('./models/'+name+'.glb',import.meta.url).href);
+  const {scene:model,animations}=await loader.loadAsync(new URL('./models/'+name+'.glb?v=2',import.meta.url).href);
   const actor=group(scene,name);
   model.updateMatrixWorld(true);
   const bounds=new THREE.Box3().setFromObject(model,true);
@@ -101,7 +188,7 @@ async function mount(scene,name,x,z,yaw,length) {
   model.position.sub(new THREE.Vector3(center.x,bounds.min.y,center.z));
   actor.add(model);
   model.traverse(o=>{ if(o.isMesh){ o.castShadow=false; o.receiveShadow=true; } });
-  const clip=animations.find(a=>a.name.includes('Look and sway'))??animations[0];
+  const clip=animations[0];
   if(!clip)throw new Error(name+' has no animated exhibit');
   const mixer=new THREE.AnimationMixer(model);
   mixer.clipAction(clip).play();
@@ -121,11 +208,21 @@ try {
   scene.add(new THREE.HemisphereLight('#e9faff','#cec49a',1.85));
   const sun=new THREE.DirectionalLight('#fff0d8',2.45);
   sun.position.set(-6,9,6);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
-  Object.assign(sun.shadow.camera,{left:-7,right:7,top:7,bottom:-7,near:1,far:32});
+  Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10,near:1,far:32});
   sun.shadow.normalBias=.020;scene.add(sun);
-  const lot=group(scene,'single hex dinosaur park');
+  const spacing=4.2;
+  const museumX=spacing*1.5;
+  const museumZ=-spacing*Math.sqrt(3)/2;
+  const lot=group(scene,'Dinosaur park hex');
+  const museumLot=group(scene,'Dinosaur museum hex');
+  museumLot.position.set(museumX,0,museumZ);
   terrain(lot);
+  museum(museumLot);
+  const connector=group(scene,'Shared pedestrian path');
+  trail(connector,[[museumX,museumZ+2.98,.47],[5.53,-.78,.45],[4.44,-1.36,.43],[3.15,museumZ/2,.40],[2.68,-1.03,.33],[2.20,-.26,.35],[.91,-.23,.35],[.06,-.22,.37]],.069);
   bakeLot(lot);
+  bakeLot(museumLot);
+  bakeLot(connector);
   const mixers=await Promise.all([
     mount(scene,'trex',-1.54,.76,.99,2.52),
     mount(scene,'triceratops',1.47,.75,-.85,2.30),
@@ -136,14 +233,14 @@ try {
   orbit.maxPolarAngle=Math.PI*.48;orbit.minZoom=.68;orbit.maxZoom=3.3;
   function resize(){
     const w=Math.max(1,stage.clientWidth),h=Math.max(1,stage.clientHeight),a=w/h;
-    const span=Math.max(8,9.0/a);
+    const span=Math.max(10,15.4/a);
     Object.assign(camera,{left:-span*a/2,right:span*a/2,top:span/2,bottom:-span/2});
     camera.updateProjectionMatrix();
     renderer.setSize(w,h,false);
   }
   function reset(){
-    orbit.target.set(0,.77,.15);
-    camera.position.set(4.5,7.2,11.8);camera.zoom=1;camera.updateProjectionMatrix();orbit.update();
+    orbit.target.set(museumX/2,.83,museumZ/2);
+    camera.position.set(museumX/2+3.2,8.4,museumZ/2+15);camera.zoom=1;camera.updateProjectionMatrix();orbit.update();
   }
   new ResizeObserver(resize).observe(stage);
   document.getElementById('reset').onclick=reset;
@@ -163,6 +260,6 @@ try {
   status.hidden=true;
 }catch(error){
   stage.dataset.state='error';
-  status.textContent='恐龍公園暫時無法載入。';
+  status.textContent='恐龍園區暫時無法載入。';
   console.error(error);
 }
