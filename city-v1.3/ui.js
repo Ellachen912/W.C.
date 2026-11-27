@@ -10,7 +10,7 @@ import { ZY } from './zy.js';
 const MENU=[['市政中心',['hall','mayor']],['教育',['school','library']],['住宅',['home']],['基礎建設',['power','water','sewage','trash']],
   ['農業畜牧',['garden','ranch','orchard','tea','agri']],['美食',['breakfast','bakery','icecream','burger','japanese','donut','boba','cafe','nightmarket']],
   ['商業與生活',['market','street','bank']],['醫療與安全',['hospital','firedept','police']],['其他區',['clinic','conv','park','firestation','policebox','temple','stationery','bookstore']],
-  ['文化',['art','music','dino','aquarium','gym']],['自然科學',['botanic','playground','zoo','observatory']],['交通',['pier','train','airport']]];
+  ['文化',['art','music','aquarium','gym']],['自然科學',['botanic','playground','zoo','observatory']],['交通',['pier','train','airport']]];
 /* 家長 11-20 23:33～23:36：商業區不蓋百貨公司、觀光飯店；商店街改叫老街；書店搬到其他區；運動併進文化；「自然、科學與遊樂」改叫「自然科學」 */
 
 export function initUI({ L, camera, BUILDINGS, TOPH, renderCity, flyTo, snap, bounce, plotPos, setHi, curB, TM }){
@@ -156,7 +156,7 @@ export function initUI({ L, camera, BUILDINGS, TOPH, renderCity, flyTo, snap, bo
     return `<div class="row${t===pending?' pick':''}">${thumb(t)}<b>${ruby(ty.name)}<br><small>${zt(low?'木星還不夠，還差 '+(c-S.stars)+' 顆':ty.size==='half'?'半格的小店':'可以蓋在這裡')}</small></b><button data-t="${t}" type="button" class="${low?'soft':''}">${zt('蓋')} ${J} ${c}</button></div>`;
   }
   function openPlot(pid,pend){
-    pending=pend||pending; const p=PLOTS[pid], types=Object.keys(TYPES).filter(t=>TYPES[t].zone===p.zone&&!TYPES[t].fixed);
+    pending=pend||pending; const p=PLOTS[pid], types=Object.keys(TYPES).filter(t=>TYPES[t].zone===p.zone&&!TYPES[t].fixed&&!TYPES[t].previewOnly);
     types.sort((a,b)=>(a===pending?-1:0)-(b===pending?-1:0)||(canPlace(S.b,a,pid).why?1:0)-(canPlace(S.b,b,pid).why?1:0));
     const one=pend&&!canPlace(S.b,pend,pid).why;   /* 家長 11-14：從「建造」選好建築、點發亮的土地 → 只問這一棟 */
     openSheet(`<h2>${zt(one?'在這裡蓋'+TYPES[pend].name+'？':'空地')}</h2><div class="sub">${zt(ZONES[p.zone].name+(p.half?'・半格':'')+'・土地')} ${pid}</div>`+(one?typeRow(pend,pid):types.length?types.map(t=>typeRow(t,pid)).join(''):`<p class="sub">${zt('這一區沒有別的建築可以蓋')}</p>`));
@@ -186,7 +186,7 @@ export function initUI({ L, camera, BUILDINGS, TOPH, renderCity, flyTo, snap, bo
   /* ---- iPad 建造樹（家長 11-19 15:15～15:18）：寬螢幕才用；一欄是一步，從左往右；卡片是建築小圖＋注音名字。
      蓋好的→打開那一棟；可以蓋的→關掉、能蓋的空地亮起來（跟原本一樣）；還不能蓋的→把要先完成的卡片框起來，並跳出提醒 ---- */
   const wideUI=()=>innerWidth>=700&&innerHeight>=600;
-  function treeCols(){ const T=Object.keys(TYPES).filter(t=>!TYPES[t].soon), memo={};
+  function treeCols(){ const T=Object.keys(TYPES).filter(t=>!TYPES[t].soon&&!TYPES[t].previewOnly), memo={};
     const reqTs=t=>reqList(t,1).flatMap(it=>it[0]==='any'?[it[1].reduce((a,b)=>dep(a)<=dep(b)?a:b)]:it[0]==='food'?['breakfast']:[it[0]]).filter(r=>r!==t&&TYPES[r]&&(TYPES[r].stage===2)===(TYPES[t].stage===2));
     function dep(t){ if(t in memo) return memo[t]; memo[t]=0; const rs=reqTs(t); return memo[t]=rs.length?1+Math.max(...rs.map(dep)):0; }
     const groups=[1,2].map(sg=>{ const ts=T.filter(t=>(TYPES[t].stage===2?2:1)===sg), cols=[]; for(const t of ts){ const d=dep(t); (cols[d]=cols[d]||[]).push(t); } return cols.filter(Boolean); });
@@ -266,7 +266,7 @@ export function initUI({ L, camera, BUILDINGS, TOPH, renderCity, flyTo, snap, bo
   let testPlaceFn=null;
   function testPlace(pid){
     /* 測試模式（家長 11-19 17:37）：所有建築都列出來，不管分區和條件，點了直接放；這塊地本來的分區排最前面 */
-    const p=PLOTS[pid], all=Object.keys(TYPES), mine=all.filter(t=>TYPES[t].zone===p.zone), rest=all.filter(t=>TYPES[t].zone!==p.zone);
+    const p=PLOTS[pid], all=Object.keys(TYPES).filter(t=>!TYPES[t].previewOnly), mine=all.filter(t=>TYPES[t].zone===p.zone), rest=all.filter(t=>TYPES[t].zone!==p.zone);
     const row=t=>{ const ok=canPlace(TM.b,t,pid,true), ty=TYPES[t];
       return ok.why?`<div class="row dim"><b>${esc(ty.name)}<br><small>${esc(ok.why)}</small></b></div>`
                    :`<div class="row"><b>${esc(ty.name)}<br><small>${esc(ZONES[ty.zone].name+'・'+(ty.size==='half'?'半格':ty.size===2?'2 格':'整格')+'・最高 Lv'+ty.maxLv)}</small></b><button data-t="${t}" type="button">放這裡</button></div>`; };
