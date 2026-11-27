@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>恐龍館｜獨立測試</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:#3b4550}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{background:linear-gradient(#c8d9de,#e8e4d8)}
+canvas{display:block;width:100%;height:100%}
+header{position:fixed;top:16px;left:18px;padding:12px 16px;border-radius:16px;background:#ffffffd9;box-shadow:0 3px 16px #40565b26;backdrop-filter:blur(8px)}
+h1{font-size:20px;margin:0 0 4px}p{font-size:13px;margin:0;color:#66727a}
+.controls{position:fixed;right:18px;top:16px;border:0;border-radius:12px;background:#ffffffdc;padding:9px 13px;color:#435b5b;font:inherit;cursor:pointer;box-shadow:0 3px 12px #40565b20}
+footer{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#ffffffdc;border-radius:999px;padding:8px 14px;font-size:13px;color:#59696b;white-space:nowrap}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<header><h1>恐龍館｜獨立測試</h1><p>一格六角地・三角龍與暴龍戶外園區</p></header>
+<button class="controls" id="reset">重設視角</button>
+<footer>拖曳旋轉・滾輪縮放・此頁獨立運作，不載入 City 遊戲</footer>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const canvas=document.getElementById('view');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+const scene=new THREE.Scene(); scene.background=new THREE.Color('#c8d9de');
+const camera=new THREE.PerspectiveCamera(34,innerWidth/innerHeight,.1,100);
+camera.position.set(10,9,12);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,1.0,0); controls.enableDamping=true; controls.minDistance=7; controls.maxDistance=19; controls.maxPolarAngle=Math.PI*.48;
+scene.add(new THREE.HemisphereLight('#fff5df','#768c72',2.2));
+const sun=new THREE.DirectionalLight('#fff0d2',3.1); sun.position.set(-5,10,7); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); scene.add(sun);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#c8d9de',roughness:1}));
+floor.rotation.x=-Math.PI/2; floor.position.y=-.09; floor.receiveShadow=true; scene.add(floor);
+const ROOT=scene;
+const mats={};
+function mat(c,o={}){const k=c+JSON.stringify(o);return mats[k]||(mats[k]=new THREE.MeshStandardMaterial({color:c,roughness:.78,metalness:0,...o}));}
+function hexPad(color,inset=.42,h=.09,y=0){const R=4.2-inset,s=new THREE.Shape();for(let i=0;i<6;i++){const a=i*Math.PI/3;i?s.lineTo(R*Math.cos(a),R*Math.sin(a)):s.moveTo(R*Math.cos(a),R*Math.sin(a));}s.closePath();const g=new THREE.ExtrudeGeometry(s,{depth:h,bevelEnabled:true,bevelThickness:.02,bevelSize:.03,bevelSegments:2});g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,color&&color.isMaterial?color:mat(color));m.position.y=y;m.castShadow=true;m.receiveShadow=true;ROOT.add(m);return m;}
+
+const cream = '#f1e2c4', trim = '#fff4df', teal = '#579e9b', roof = '#5b9ea7';
+const stone = '#d8cbb3', green = '#79b861', green2 = '#92ca6d', gold = '#e8b85d';
+
+function box(parent,w,h,d,color,x,y,z,r=.04){
+  const geo = new RoundedBoxGeometry(w,h,d,3,Math.min(r,w/2-.002,h/2-.002,d/2-.002));
+  const m = new THREE.Mesh(geo, mat(color,{roughness:.82,flatShading:true}));
+  m.position.set(x,y+h/2,z); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m;
+}
+function oval(parent,rx,ry,rz,color,x,y,z){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1,12,8),mat(color,{roughness:.82,flatShading:true}));
+  m.position.set(x,y,z); m.scale.set(rx,ry,rz); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m;
+}
+function rod(parent,a,b,r,color,r2=r,segments=8){
+  const A=new THREE.Vector3(...a), B=new THREE.Vector3(...b), d=B.clone().sub(A);
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(r2,r,d.length(),segments),mat(color,{roughness:.82,flatShading:true}));
+  m.position.copy(A.add(B).multiplyScalar(.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
+  m.castShadow=true; parent.add(m); return m;
+}
+function label(parent,text,x,y,z,w=.88,h=.18){
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=128;
+  const c=cv.getContext('2d'); c.clearRect(0,0,512,128); c.fillStyle='#f8edda';
+  c.beginPath(); c.roundRect(8,8,496,112,22); c.fill(); c.strokeStyle='#579e9b'; c.lineWidth=9; c.stroke();
+  c.fillStyle='#355f62'; c.font='bold 76px "PingFang TC","Noto Sans TC",sans-serif';
+  c.textAlign='center'; c.textBaseline='middle'; c.fillText(text,256,66);
+  const tex=new THREE.CanvasTexture(cv); tex.colorSpace=THREE.SRGBColorSpace;
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));
+  m.position.set(x,y,z); parent.add(m); return m;
+}
+function triceratops(parent,x,z){
+  const g=new THREE.Group(); g.position.set(x,0,z); parent.add(g);
+  oval(g,.66,.42,.92,'#79ad59',0,.72,0);
+  for(const [lx,lz] of [[-.43,-.5],[.43,-.5],[-.43,.53],[.43,.53]]){
+    box(g,.22,.42,.24,'#6f9e50',lx,.08,lz,.07);
+    oval(g,.14,.07,.15,'#e7d7aa',lx,.08,lz+.02);
+  }
+  oval(g,.39,.34,.38,'#80b85b',0,.83,.7);
+  oval(g,.49,.48,.19,'#619a50',0,.94,.42); // broad frill
+  rod(g,[0,1.11,.69],[0,1.48,.92],.105,'#f5e5c0',.005);
+  rod(g,[-.22,1.0,.72],[-.43,1.03,1.02],.09,'#f5e5c0',.005);
+  rod(g,[.22,1.0,.72],[.43,1.03,1.02],.09,'#f5e5c0',.005);
+  oval(g,.045,.05,.035,'#2f3f36',-.24,.94,.98); oval(g,.045,.05,.035,'#2f3f36',.24,.94,.98);
+  rod(g,[0,.73,-.82],[0,.67,-1.35],.18,'#6f9e50',.01);
+  return g;
+}
+function tyrannosaurus(parent,x,z){
+  const g=new THREE.Group(); g.position.set(x,0,z); parent.add(g);
+  oval(g,.52,.58,.68,'#c96f52',0,.9,-.08);
+  oval(g,.39,.43,.38,'#d47b5b',0,1.18,.42);
+  oval(g,.37,.25,.48,'#cf7654',0,1.48,.78);
+  oval(g,.32,.13,.42,'#f2d6a8',0,1.33,.84);
+  for(const s of [-1,1]){
+    oval(g,.055,.06,.04,'#392e2d',s*.23,1.57,.98);
+    rod(g,[s*.29,.85,.28],[s*.42,.63,.44],.09,'#b96349',.055);
+    box(g,.25,.62,.28,'#b96349',s*.25,.06,-.2,.09);
+    oval(g,.16,.08,.18,'#eed5a6',s*.25,.08,-.11);
+  }
+  rod(g,[0,.87,-.55],[0,.7,-1.6],.27,'#bb654d',.015);
+  return g;
+}
+function ropeFence(parent,cx,cz,rx,rz){
+  const pts=12, posts=[];
+  for(let i=0;i<pts;i++){
+    const a=i/(pts-1)*Math.PI, x=cx+Math.cos(a)*rx, z=cz+Math.sin(a)*rz;
+    box(parent,.075,.34,.075,'#9b7048',x,.02,z,.02); oval(parent,.065,.045,.065,'#e3bb78',x,.37,z);
+    posts.push([x,.28,z]);
+  }
+  for(let i=0;i<posts.length-1;i+=2) rod(parent,posts[i],posts[i+2],.025,'#e9d4a4');
+}
+function drawDinosaurMuseum(){
+  const lot=ROOT, g=new THREE.Group(); g.name='恐龍館 戶外恐龍園'; lot.add(g);
+  const pave=new THREE.MeshStandardMaterial({color:'#d9cfbc',roughness:.95});
+  hexPad(pave,.42,.09,0);
+  // 細薄草地區塊、石板路和館舍前庭，所有物件限制在單一六角格內
+  const lawn=(x,z,w,d,c=green)=>box(g,w,.055,d,c,x,.09,z,.12);
+  lawn(-1.25,-.05,2.45,3.05,'#88be68');
+  lawn(1.18,-.05,2.25,3.05,'#91c96d');
+  lawn(0,2.05,2.7,1.55,'#89bf69');
+  box(g,1.0,.035,4.25,'#e8dfcf',0,.15,1.2,.14);
+  for(let i=0;i<7;i++) box(g,.58,.025,.42,i%2?'#eee6d9':'#ded3c0',0,.18,-.62+i*.55,.08);
+  // 小型米白石造館舍，青綠屋頂；不佔滿地塊
+  box(g,2.25,1.12,1.3,cream,0,.15,-2.18,.08);
+  box(g,2.38,.10,1.42,trim,0,1.19,-2.18,.04);
+  const roofMesh=new THREE.Mesh(new THREE.ConeGeometry(1.48,.56,4),mat(roof,{roughness:.78,flatShading:true}));
+  roofMesh.rotation.y=Math.PI/4; roofMesh.position.set(0,1.54,-2.18); roofMesh.castShadow=true; g.add(roofMesh);
+  box(g,.62,.74,.055,'#6d5948',0,.19,-1.51,.035);
+  for(const x of [-.78,.78]){ box(g,.42,.56,.05,'#8fc8d0',x,.52,-1.50,.04); box(g,.48,.07,.09,trim,x,.47,-1.45,.02); }
+  label(g,'恐龍館',0,1.04,-1.475,.88,.17);
+  // 兩處平地戶外展示，恐龍腳下與草地齊平，沒有展示台
+  triceratops(g,-1.18,.3); tyrannosaurus(g,1.12,.35);
+  ropeFence(g,-1.18,.3,.92,1.02); ropeFence(g,1.12,.35,.84,1.02);
+  // 小型化石展示直接鋪在地面
+  const fossil='#e8d8b5';
+  oval(g,.10,.07,.12,fossil,.78, .20,2.38);
+  for(let i=0;i<6;i++){ oval(g,.075,.065,.09,fossil,.78+(i-2.5)*.15,.20,2.35); rod(g,[.76+(i-2.5)*.15,.20,2.35],[.76+(i-2.5)*.15,.20,2.58],.035,fossil); }
+  for(const [x,z,c] of [[-2.45,-1.25,'#63a956'],[2.48,-1.0,'#6eaf5b'],[-2.55,1.7,'#5d9f52'],[2.45,2.15,'#6cb45b']]){
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.075,.11,.55,7),mat('#a87952')); trunk.position.set(x,.37,z); trunk.castShadow=true; g.add(trunk);
+    for(let k=0;k<5;k++) oval(g,.28,.28,.28,k%2?c:'#7cc064',x+Math.cos(k*1.26)*.16,.78+Math.sin(k*1.7)*.12,z+Math.sin(k*1.26)*.16);
+  }
+  for(const [x,z] of [[-2.3,.95],[-.25,2.95],[2.25,.95],[-1.95,-2.8],[1.95,-2.8]]){
+    for(let k=0;k<3;k++) oval(g,.055,.055,.055,['#f6d15e','#f3a3ac','#fff3d8'][k],x+k*.09,.18,z);
+  }
+  return g;
+}
+
+const exhibit=drawDinosaurMuseum();
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+document.getElementById('reset').addEventListener('click',()=>{camera.position.set(10,9,12);controls.target.set(0,1,0);controls.update();});
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
+</script></body></html>
