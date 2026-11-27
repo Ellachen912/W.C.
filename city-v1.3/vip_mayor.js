@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { M, add } from './people.js';
-import { VSCALE, wrapUp, pickCap, SHIRT, pickA } from './vip_common.js';
+import { VSCALE, wrapUp, pickCap, SHIRT, pickA, preserveVipJoints, installVipActions } from './vip_common.js';
 import { buildExpressions, expressionController } from './vip_expressions.js';
 export function makeMayor(){
 const mSkin=M('#f6c9ab',{roughness:.82}), mHair=M('#29262c',{roughness:.72}), mShirt=new THREE.MeshStandardMaterial({color:'#f7882a',roughness:.65}), mTrim=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.55}), mShorts=M('#24366e',{roughness:.7}),
@@ -105,7 +105,7 @@ for(const s of [-1,1]){
 }
 {const shape=new THREE.Shape();shape.moveTo(-.016,-.018);shape.quadraticCurveTo(-.019,-.018,-.017,-.013);shape.lineTo(-.003,.023);shape.quadraticCurveTo(0,.028,.003,.023);shape.lineTo(.017,-.013);shape.quadraticCurveTo(.019,-.018,.014,-.018);shape.closePath();const geo=new THREE.ExtrudeGeometry(shape,{depth:.007,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:3,steps:1,curveSegments:12});const nose=new THREE.Mesh(geo,M('#dc925e'));onHead(nose,0,-.15,HR*.997);}
 const originalMouth=(()=>{const arc=Math.PI*.6,m=new THREE.Mesh(new THREE.TorusGeometry(.046,.0055,8,24,arc),mLip);m.rotation.z=Math.PI+(Math.PI-arc)/2;return onHead(wrap(m,0),0,-.27,HR*.994);})();
-const {mouths,smileEyes}=buildExpressions({originalMouth,P,HR,face,mInk,mouthPitch:-0.27,lashes:false});
+const {mouths,smileEyes,calmEyes}=buildExpressions({originalMouth,P,HR,face,mInk,mouthPitch:-0.27,lashes:false});
 
 // Smooth continuous sculpted hair shell, including fringe and sideburns.
 const HRH=HR*1.05;
@@ -234,26 +234,22 @@ const shades=new THREE.Group(); face.add(shades);
   /* 家長 11-26：上衣、帽子（可能不戴）、表情都隨機；表情過一陣子會換 */
   const capc=pickCap(), sh=SHIRT[Math.random()<.5?'橘':'白']; mShirt.color.set(sh[0]); mTrim.color.set(sh[1]);
   const hat=capc!=='不戴'; if(hat) capColor(capc); cap.visible=hat; for(const m of FRINGE) m.visible=!hat; shades.visible=false;
-  const live=[...new Set(Object.values(mouths)),...smileEyes,...eyeVariants.flatMap(v=>[v.eye,v.lid])];
+  const live=[...new Set(Object.values(mouths)),...smileEyes,...calmEyes,...eyeVariants.flatMap(v=>[v.eye,v.lid])];
   for(const o of live){ o.userData.keep=1; o.traverse(x=>{ x.userData.noMerge=1; x.userData.keep=1; }); }
-  let expr='原版'; const setExpr=e=>{ expr=e; for(const m of new Set(Object.values(mouths))) m.visible=m===mouths[e]; for(const m of smileEyes) m.visible=e==='微笑'||e==='開心大笑'; };
+  let expr='原版'; const setExpr=e=>{ expr=e; for(const m of calmEyes) m.visible=e==='閉眼'; for(const m of new Set(Object.values(mouths))) m.visible=m===mouths[e]; for(const m of smileEyes) m.visible=e==='微笑'||e==='開心大笑'; };
   const expressions=expressionController(setExpr);
   let T=0, blinkT=2;
+  preserveVipJoints([armL,armR],[legL,legR]);
   const OUT=wrapUp(person,{mayor:true},1.0);
   OUT.react=expressions.react;
   OUT.anim=(dt,st)=>{ T+=dt; glowTick(T); const walk=st.walk, wave=st.wave, sw=walk?Math.sin(st.ph):0; jupTick(dt,T,wave);
-    expressions.tick(dt,wave);
     legL.rotation.x=sw*.5; legR.rotation.x=-sw*.5;
     body.position.y=walk?(1-Math.cos(st.ph*2))*.007:Math.sin(T*2)*.003; body.rotation.z=walk?Math.sin(st.ph)*.022:Math.sin(T*1.2)*.004;
     armL.rotation.x=-sw*.5; armL.rotation.z=.18;
     armR.rotation.x=wave?-.5:sw*.5; armR.rotation.z=wave?-2.2+Math.sin(T*9)*.3:-.18;
     head.rotation.z=wave?Math.sin(T*4.5)*.05:walk?-Math.sin(st.ph)*.012:Math.sin(T*.8)*.009; head.rotation.y=walk||wave?0:Math.sin(T*.6)*.12;
     blinkT-=dt; const closed=blinkT<0; if(blinkT<-.12) blinkT=2.5+Math.random()*2.5;
-    const happy=expr==='微笑'||expr==='開心大笑'; for(const {eye,lid} of eyeVariants){ eye.visible=!happy&&!closed; lid.visible=!happy&&closed; } };
-  /* 移交 11-26：坐下／平滑起身（sit 0→1 約 0.9 秒，smoothstep），原地開心慶祝（取自 mayor-motion-v4，腳不離地；不跑、不跳、不驚訝） */
-  { const baseAnim=OUT.anim; let sitS=0, cT=0; OUT.sitK=0;
-    OUT.anim=(dt,st)=>{ baseAnim(dt,st);
-      sitS=Math.max(0,Math.min(1,sitS+(st.sit?dt:-dt)/.9)); const k=sitS*sitS*(3-2*sitS); OUT.sitK=k;
-      if(k>0){ legL.rotation.x+=(-1.48-legL.rotation.x)*k; legR.rotation.x+=(-1.48-legR.rotation.x)*k; body.position.y+=.115*k; armL.rotation.x-=.35*k; armR.rotation.x-=.35*k; }
-      if(st.cheer&&k===0&&!st.walk){ cT+=dt; const p=(cT%1.05)/1.05, q=Math.max(0,Math.min(1,(p-.23)/.43)), air=4*q*(1-q), crouch=p<.23?Math.sin(Math.PI*p/.23):p>.66&&p<.87?Math.sin(Math.PI*(p-.66)/.21):0; body.position.y=0; body.rotation.x=.10*crouch-.035*air; legL.rotation.x=legR.rotation.x=0; armL.rotation.x=armR.rotation.x=.48*crouch-.52*air; armL.rotation.z=.18+air*2.45; armR.rotation.z=-.18-air*2.45; head.rotation.x=-.08*air+.05*crouch; head.rotation.z=.075*air*Math.sin(cT*10); } else if(cT){ cT=0; body.rotation.x=0; head.rotation.x=0; } }; }
+    const happy=expr==='微笑'||expr==='開心大笑'||expr==='閉眼'; for(const {eye,lid} of eyeVariants){ eye.visible=!happy&&!closed; lid.visible=!happy&&closed; } };
+  installVipActions(OUT,{body,head,arms:[armL,armR],legs:[legL,legR],skin:mSkin,
+    avery:false,expressions,face,radius:HR});
   return OUT; }
