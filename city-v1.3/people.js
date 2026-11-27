@@ -381,9 +381,7 @@ function addAcc(d){ const {head,body,HR,B,H}=d, A={};
   add(hat,new THREE.CylinderGeometry(.108,.135,.09,24),leather,[0,.155,0]);
   add(hat,new THREE.CylinderGeometry(.137,.137,.022,24),band,[0,.122,0]);
   for(const sign of [-1,1])add(hat,new THREE.SphereGeometry(1,16,8),leather,[sign*.16,.125,0],[0,0,sign*.28],[.075,.025,.16]);
-  const scarf=new THREE.Group();body.add(scarf);
-  add(scarf,new THREE.CylinderGeometry(.078*B,.09*B,.025*H,16),M('#e9d6a6'),[0,.315*H,0]);
-  add(scarf,new THREE.SphereGeometry(1,16,10),M('#e9d6a6'),[0,.293*H,.113*B],[0,0,0],[.038*B,.035*H,.009]);
+  const scarf=knitScarf(); scarf.traverse(o=>{if(o.isMesh){o.material=o.material.clone();o.material.color.set('#e9d6a6');}});
   const bucket=new THREE.Group();hold.add(bucket);const metal=M('#aab6bc',{metalness:.35});
   add(bucket,new THREE.CylinderGeometry(.058,.043,.095,20,1,true),M('#aab6bc',{side:THREE.DoubleSide,metalness:.35}),[0,-.09,.025]);
   add(bucket,new THREE.CircleGeometry(.043,20),metal,[0,-.137,.025],[-Math.PI/2,0,0]);
@@ -396,9 +394,14 @@ function addAcc(d){ const {head,body,HR,B,H}=d, A={};
     for(const z of [.021,.055])add(book,new RoundedBoxGeometry(.113,.151,.009,2,.003),M('#356c59'),[0,-.035,z]);
     add(book,new RoundedBoxGeometry(.012,.151,.035,2,.003),M('#285343'),[-.051,-.035,.038]);
     add(book,new RoundedBoxGeometry(.061,.027,.003,2,.001),M('#e9c77c'),[.004,-.007,.061]);
-    A['老師']=[book];}
+    const shirt=new THREE.Group();body.add(shirt);
+    const fabric=M('#e8f2f7',{side:THREE.DoubleSide}), pocket=M('#80abc8',{side:THREE.DoubleSide});
+    function patch(points,mat){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(points.flat(),3));g.setIndex(points.length===3?[0,1,2]:[0,1,2,0,2,3]);g.computeVertexNormals();add(shirt,g,mat);}
+    patch([[-.086*B,.268*H,.109*B],[-.041*B,.268*H,.132*B],[-.041*B,.216*H,.14*B],[-.086*B,.216*H,.116*B]],pocket);
+    add(shirt,new THREE.CylinderGeometry(.005,.005,.047*H,10),M('#354a65'),[-.06*B,.272*H,.122*B],[0,0,-.12]);
+    A['老師']=[book,shirt];}
   d.acc=A; }
-/* 家長 11-27：斗笠不再當一般居民的配件（農夫的工作服才戴）；職業服裝取自 GitHub residents-professions-v7（69b6a8f）：太空人、船長、列車長、畫家、農夫、牧場主人、老師 */
+/* 家長 11-27：斗笠不再當一般居民的配件（農夫的工作服才戴）；職業服裝取自 GitHub residents-professions-v9（b55cd163）：太空人、船長、列車長、畫家、農夫、牧場主人、老師 */
 function wear(d,k){ const ok=d.kid?['無','小黃帽＋書包','領巾','遛狗','氣球']:['無','菜籃','拐杖','背包','遛狗','嬰兒車','領巾','清潔隊員','警察','醫生','護士','消防員','郵差','公車司機','建築工人','廚師','太空人','船長','列車長','畫家','農夫','牧場主人','老師']; if(!ok.includes(k)) k='無';   // 小孩只能小黃帽＋書包，大人不行
   const vis=new Set(d.acc[k]||[]); for(const arr of Object.values(d.acc)) for(const o of arr) o.visible=vis.has(o);
   d.cur=k; d.hat=['小黃帽＋書包','清潔隊員','警察','消防員','護士','郵差','公車司機','建築工人','廚師','太空人','船長','列車長','畫家','農夫','牧場主人'].includes(k); d.holding=['菜籃','拐杖','清潔隊員','遛狗','建築工人','氣球','農夫','牧場主人','老師'].includes(k); d.push=(k==='嬰兒車');
@@ -438,7 +441,7 @@ export const HAIRS=['短髮','長髮','鮑伯頭','側分','捲髮','丸子頭',
 export const PSCALE=.62;   // 小人偶在城市裡的大小
 export function spawnDoll({kind,acc='無',hair='原本',glasses=null}){ const d=makeDoll(kind); addAcc(d);
   d.mats.mSkin.color.set(pick(PAL.skin)); if(!d.old) d.mats.mHair.color.set(pick(PAL.hair)); d.mats.mTop.color.set(pick(PAL.top)); d.mats.mBot.color.set(pick(PAL.bottom));
-  wear(d,acc); setHair(d,hair); d.glasses.visible=glasses==null?d.old:glasses; glassCol(d); d.umb.userData.keep=1;
+  wear(d,acc); setHair(d,hair); d.glasses.visible=acc==='老師'||(glasses==null?d.old:glasses); glassCol(d); d.umb.userData.keep=1;
   for(const e of d.eyes) e.userData.noMerge=1;
   prune(d.root); bake(d.root);
   const obj=new THREE.Group(), inner=new THREE.Group(); inner.scale.setScalar(PSCALE); inner.add(d.root); obj.add(inner); d.root.position.set(0,0,0);
