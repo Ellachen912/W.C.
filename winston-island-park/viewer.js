@@ -90,10 +90,10 @@ try {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   let gltf;
   try {
-    gltf = await loader.loadAsync('./park-mobile.glb?v=village');
+    gltf = await loader.loadAsync('./park-mobile.glb?v=pastel');
   } catch (error) {
     console.warn('Mobile model failed; loading the standard GLB.', error);
-    gltf = await loader.loadAsync('./park.glb?v=village');
+    gltf = await loader.loadAsync('./park.glb?v=pastel');
   }
   gltf.scene.traverse(object => {
     if (object.isMesh) {
