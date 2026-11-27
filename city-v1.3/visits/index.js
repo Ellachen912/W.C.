@@ -5,4 +5,5 @@ export const LIST=['bakery',
   'conv','clinic','stationery','policebox','firestation','breakfast','icecream','burger','japanese',   // B-1
   'hall','mayor','school','library','hospital',   // B-2
   'art','bank','temple','market','nightmarket',   // B-3
+  'park','home','pier','garden','orchard','tea','ranch',   // B-4
 ];
