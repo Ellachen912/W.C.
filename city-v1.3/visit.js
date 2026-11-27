@@ -55,7 +55,8 @@ export function createVisits(o){
   /* ---------- 這個人是誰 ---------- */
   const role=w=>{ const d=w.P.d; return d&&d.cur&&d.cur!=='無'?d.cur:null; };
   const names=w=>{ const P=w.P, n=['*']; const r=role(w); if(r) n.push(r); if(P.kind) n.push(P.kind); n.push(P.kid?'小孩':'大人'); if(P.mayor) n.push('市長'); if(P.avery) n.push('Avery'); return n; };
-  const can=(w,a)=>{ const P=w.P; if(P.canDo) return !!P.canDo(a); return a==='stand'||a==='look'; };   // 還沒有 A-1 的動作時：只會站、看
+  const VIP_ACTS=new Set(['stand','look','sit','chat','pray','crouch','icecream','dance','proud','handshake','waitdoor']);
+  const can=(w,a)=>{ const P=w.P; if(P.mayor||P.avery) return VIP_ACTS.has(a)&&!(P.avery&&(a==='proud'||a==='handshake'))&&!(P.mayor&&a==='waitdoor'); if(P.canDo) return !!P.canDo(a); return a==='stand'||a==='look'; };   // 還沒有 A-1 的動作時：只會站、看
   function freeTypes(w){ const r=role(w), k=w.P.kind; if(r&&FREE[r]) return FREE[r]; if(k==='奶奶'||k==='爺爺') return OLD; if(w.P.kid) return KID; return ADULT; }
   function fits(G,w,rain){ const n=names(w), who=G.who;
     const ok=who==='*'||(Array.isArray(who)&&(who.includes('*')||who.some(x=>n.includes(x)))); if(!ok) return false;
@@ -125,8 +126,20 @@ export function createVisits(o){
   function turnTo(o3,yaw,dt){ const d=Math.atan2(Math.sin(yaw-o3.rotation.y),Math.cos(yaw-o3.rotation.y)); o3.rotation.y+=d*(1-Math.exp(-dt*8)); }
   const FADE=.35;   /* 從門前 .35 開始淡（門在 in 最後一點前面約 .17），走到門裡剛好看不見 */
 
-  function finish(w){ const v=w.vis; if(!v) return; setFade(w.P,1); w.vis=null; w.place(v.nodeP.x,v.nodeP.z); w.vT=rnd(20,40); }
-  function abort(w){ const v=w.vis; if(!v) return; setFade(w.P,1); w.P.obj.position.copy(v.nodeP); w.vis=null; w.place(v.nodeP.x,v.nodeP.z); w.vT=rnd(10,20); }
+  function finish(w){ const v=w.vis; if(!v) return; setFade(w.P,1); w.vis=null; w.place(v.nodeP.x,v.nodeP.z); w.vT=rnd(20,40); if(isVip(w)&&o.vipDone) o.vipDone(w); }
+  function abort(w){ const v=w.vis; if(!v) return; setFade(w.P,1); w.P.obj.position.copy(v.nodeP); w.vis=null; w.place(v.nodeP.x,v.nodeP.z); w.vT=rnd(10,20); if(isVip(w)&&o.vipDone) o.vipDone(w); }
+
+  /* ---------- 市長和 Avery 一起去（路線檔裡 who 同時有市長和 Avery、可以 2 人的組） ---------- */
+  const pairGroups=(pid,m,a,rain)=>{ const B=curB(), file=FILES[B[pid].t]; const L=file&&lvOf(file,B[pid].lv); if(!L) return [];
+    return Object.entries(L.groups).filter(([gn,G])=>Array.isArray(G.who)&&G.who.includes('市長')&&G.who.includes('Avery')&&(G.max||2)>=2&&fits(G,m,rain)&&fits(G,a,rain)&&countG(pid,gn)===0); };
+  function startPair(m,a,pid){ const B=curB(), rain=o.rain(), mp=m.P.obj.position;
+    if(active().length>4) return false;
+    let pids=pid?[pid]:Object.keys(B).filter(p=>FILES[B[p].t]&&(night()<=.5||NIGHT_OK.includes(B[p].t))&&countB(p)===0&&(h=>h&&Math.hypot(h.x-mp.x,h.z-mp.z)<7)(hexOf(p)));   /* 市長走得慢：只去附近的 */
+    for(const p of pids.sort(()=>Math.random()-.5)){ for(const [gn,G] of pairGroups(p,m,a,rain).sort(()=>Math.random()-.5)){
+      const vm=build(m,p,gn,G); if(!vm) continue; m.vis=vm; const va=build(a,p,gn,G); if(!va){ m.vis=null; continue; }
+      a.vis=va; const sec=rnd(...vm.sec); vm.sec=va.sec=[sec,sec]; va.t=-.6;   /* 一樣久；Avery 跟在市長後面 */
+      for(const w of [m,a]){ w.hold=0; w.wave=0; w.st=null; } return gn; } }
+    return false; }
 
   /* ---------- 每一格：一個人的這一趟 ---------- */
   function step(w,dt,rain){ const v=w.vis, P=w.P, o3=P.obj, B=curB();
@@ -142,25 +155,28 @@ export function createVisits(o){
       anim(moved>dt*.02);
       if(v.i>=v.pts.length){ if(v.G.inside){ v.phase='inside'; v.left=rnd(...v.sec); setFade(P,0); } else { v.phase='stay'; v.left=rnd(...v.sec); } }
       return; }
-    if(v.phase==='inside'){ v.left-=dt; if(v.left<=0) goOut(w); return; }
+    /* 市長和 Avery 一起來：兩個人都到了才開始算時間，一起出來 */
+    const mate2=isVip(w)&&walkers.find(x=>x!==w&&isVip(x)&&x.vis&&x.vis.pid===v.pid&&x.vis.gname===v.gname), waitMate=mate2&&mate2.vis.phase==='go';
+    if(v.phase==='inside'){ if(!waitMate) v.left-=dt; if(v.left<=0) goOut(w); return; }
     if(v.phase==='stay'){
       const sit=v.act==='sit', k=sit?(P.sitK!=null?P.sitK:(v.standing?0:1)):0;
       if(v.faceW) turnTo(o3,Math.atan2(v.faceW.x-o3.position.x,v.faceW.z-o3.position.z),dt);
       const ground=v.pts[v.pts.length-1].y; if(sit&&v.seatY!=null){ const drop=P.sitDrop!=null?P.sitDrop:.125; o3.position.y=ground+(v.seatY-drop-ground)*k; }
       const ex={act:v.act,sit:sit&&!v.standing}; if(v.act==='look'&&v.faceW) ex.look={x:v.faceW.x,z:v.faceW.z};
       /* 同一桌兩個人：聊天 */
-      const mate=v.st&&v.st.pair&&active().find(x=>x!==w&&x.vis.pid===v.pid&&x.vis.phase==='stay'&&x.vis.st&&x.vis.st.pair===v.st.pair);
+      const mate=sit&&v.st&&v.st.pair&&active().find(x=>x!==w&&x.vis.pid===v.pid&&x.vis.phase==='stay'&&x.vis.st&&x.vis.st.pair===v.st.pair);
       if(mate&&!v.standing){ const both=(k>=1||!sit)&&(!mate.vis.act||mate.vis.act!=='sit'||(mate.P.sitK!=null?mate.P.sitK:1)>=1);
         if(both){ const t=Math.min(v.t,mate.vis.t), me=walkers.indexOf(w)<walkers.indexOf(mate)?0:1, spk=Math.floor(t/3.5)%2;
           Object.assign(ex,{act:'chat',talk:spk===me,look:{x:mate.P.obj.position.x,z:mate.P.obj.position.z},face:'smile'});
           if(t%11>9.5&&me===0){ ex.face='laugh'; ex.cover=true; } } }
       if(w.faceForce) ex.face=w.faceForce;
       anim(false,ex);
-      v.left-=dt;
+      if(!waitMate) v.left-=dt;
       if(v.left<=0||rain&&!v.G.inside){ if(sit&&!v.standing){ v.standing=true; } }
       if(v.standing||(!sit&&(v.left<=0||rain))){ if(!sit||k<=0) goOut(w); }
       return; }
     if(v.phase==='out'){
+      if(v.delay>0){ v.delay-=dt; anim(false); return; }   /* Avery 晚一點跟著出來，不要跟市長疊在一起 */
       const x0=o3.position.x, z0=o3.position.z, moved=moveOn(o3,v,sp*dt);
       if(moved>1e-5) turnTo(o3,Math.atan2(o3.position.x-x0,o3.position.z-z0),dt);
       if(v.G.inside){ v.walked=(v.walked||0)+moved; setFade(P,Math.min(1,v.walked/FADE)); }
@@ -168,6 +184,7 @@ export function createVisits(o){
       if(v.i>=v.pts.length) finish(w); }
   }
   function goOut(w){ const v=w.vis, o3=w.P.obj; v.phase='out'; v.walked=0;
+    if(w.P.avery&&walkers.some(x=>x!==w&&isVip(x)&&x.vis&&x.vis.pid===v.pid)) v.delay=1.4;
     const back=v.G.inside?[]:(v.st&&v.st.go?[...v.st.go].reverse():[]);
     const backW=back.length?chain(v.g,back,o3.position.y):[];
     if(v.G.inside){ /* 從門裡（最後一點）淡入走出來 */ }
@@ -251,5 +268,5 @@ export function createVisits(o){
     return out; }
   const stats=()=>({files:Object.keys(FILES),visits:active().map(w=>({who:role(w)||w.P.kind,pid:w.vis.pid,g:w.vis.gname,phase:w.vis.phase,act:w.vis.act,y:+w.P.obj.position.y.toFixed(3),vis:w.P.obj.visible,fade:!!w.P._fm})),soc:SOC.map(s=>s.kind),rolls,greets,free:walkers.filter(freeW).length});
   const trace=()=>active().map(w=>({g:w.vis.gname,ph:w.vis.phase,i:w.vis.i,n:w.vis.pts.length,bi:w.vis.bi,p:w.P.obj.position.toArray().map(x=>+x.toFixed(2)),hold:w.hold,wait:w.wait,wave:w.wave,soc:!!w.soc}));
-  return { audit, trace, update, step, social, faceTick, showRoutes, refresh, sendTo, faceTest, chatTest, stats, files:FILES };
+  return { startPair, audit, trace, update, step, social, faceTick, showRoutes, refresh, sendTo, faceTest, chatTest, stats, files:FILES };
 }
