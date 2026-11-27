@@ -197,9 +197,13 @@ export function installVipActions(out, {body,head,arms,legs,skin,avery,expressio
         left=point(spread,chest,.207); right=point(-spread,chest,.207);
         break;
       }
-      case 'handshake':
-        right=point(-.105+aim*.10,chest+.032*Math.sin(time*Math.PI*4/1.5),.247);
+      case 'handshake': {
+        // 家長 11-28：不要用伸長的前臂（看起來多一截手）；整隻右手往前抬、上下搖兩下。
+        const shake=Math.sin(time*Math.PI*4/1.5);
+        arms[1].rotation.x-=k*(1.05+.14*shake);
+        arms[1].rotation.z+=k*.16;
         break;
+      }
       case 'proud':
         left=point(.163,.348,.048); right=point(-.163,.348,.048);
         head.rotation.x=-.14*k;
