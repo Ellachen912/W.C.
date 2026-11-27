@@ -104,7 +104,7 @@ for(let i=0;i<2;i++)add(body,new THREE.SphereGeometry(.009,12,8),mWhite,[0,.447-
     body.position.y=walk?Math.abs(Math.cos(st.ph))*.02:Math.sin(T*2)*.004; body.rotation.z=walk?Math.sin(st.ph)*.03:0;
     dress.rotation.y=walk?Math.sin(st.ph)*.06:0;
     armL.rotation.x=-sw*.45; armL.rotation.z=.2;
-    armR.rotation.x=sw*.45; armR.rotation.z=wave?-1.75+Math.sin(T*9)*.3:-.2; if(wave) armR.rotation.x=-1.0;
+    armR.rotation.x=wave?-.5:sw*.45; armR.rotation.z=wave?-2.2+Math.sin(T*9)*.3:-.2;   /* 家長 11-27 19:58：揮手舉手的角度比照市長 */
     head.rotation.z=wave?Math.sin(T*4.5)*.05:0; head.rotation.y=walk||wave?0:Math.sin(T*.6)*.12;
     const wob=walk?Math.sin(st.ph*2)*.05:Math.sin(T*2)*.015; ears[0].rotation.x=wob; ears[1].rotation.x=wob*.8;
     blinkT-=dt; const closed=blinkT<0; if(blinkT<-.12) blinkT=2.5+Math.random()*2.5;
