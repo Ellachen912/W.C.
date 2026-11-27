@@ -10,6 +10,7 @@ import * as L from './lib.js';
 import { TALK, PEOPLE_TALK } from './texts.js';
 import { spawnDoll, HAIRS } from './people.js';
 import { makeMayor, makeAvery } from './people_vip.js';
+import { createVisits } from './visit.js';   /* 11-27 A-0：人物進建築 */
 import { TYPES, ZONES, reqList, reqState, reqText, whyNoUp } from './data.js';
 
 const loader=new GLTFLoader();
@@ -89,8 +90,8 @@ class Walker{
     const w=c.map(e=>!e.cross?1:e.cross.zebra?1.3:.4); let r=Math.random()*w.reduce((a,b)=>a+b,0), k=0; while(k<c.length-1&&(r-=w[k])>0) k++;
     this.edge=c[k]; this.b=c[k].to; }
   update(dt,rain){ const N=this.W.nodes, A=N[this.a], B=N[this.b], dx=B.x-A.x, dz=B.z-A.z, len=Math.hypot(dx,dz)||1, o=this.P.obj;
-    if(this.wave>0) this.wave-=dt; else if(this.wait>0) this.wait-=dt; this.waveCD-=dt;
-    const moving=this.wait<=0&&this.wave<=0&&this.a!==this.b;
+    if(this.wave>0) this.wave-=dt; else if(this.wait>0) this.wait-=dt; this.waveCD-=dt; if(this.hold>0) this.hold-=dt; if(this.faceT>0) this.faceT-=dt;
+    const moving=this.wait<=0&&this.wave<=0&&!(this.hold>0)&&this.a!==this.b;   /* hold：停下來打招呼、聊天（11-27 A-0） */
     if(moving) this.t+=dt*this.speed/len;
     if(this.t>=1){ this.t=0; this.prev=this.a; this.a=this.b;
       if(liveDist(N[this.a])>LIVE_R*2){ this.place(); return this.update(0,rain); }          // 離城市太遠（離開畫面外）就直接挪回有建築的那一區
@@ -99,11 +100,12 @@ class Walker{
     let px=A.x+dx*this.t-uz*side, pz=A.z+dz*this.t+ux*side;
     if(this.out&&!cross&&A.hex){ const ox=px-A.hex.x, oz=pz-A.hex.z, l=Math.hypot(ox,oz)||1; px+=ox/l*this.out; pz+=oz/l*this.out; }   // 往馬路那一側偏，離建築遠一點
     o.position.set(px,cross?ROAD_Y:SW_Y,pz);
-    let yaw=Math.atan2(ux,uz); if(this.wave>0&&this.face) yaw=Math.atan2(this.face.x-o.position.x,this.face.z-o.position.z);
+    let yaw=Math.atan2(ux,uz); if((this.wave>0||this.hold>0)&&this.face) yaw=Math.atan2(this.face.x-o.position.x,this.face.z-o.position.z);
     let d=yaw-o.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d)); o.rotation.y+=d*Math.min(1,dt*8);
     if(moving) this.ph+=dt*this.speed*25/this.scale;
     if(this.cheer>0) this.cheer-=dt;
-    this.P.anim(dt,{walk:moving,ph:this.ph,wave:this.wave>0&&!(this.cheer>0),rain,cheer:this.cheer>0}); }
+    const st=this.st?{...this.st}:{}; if(!st.face&&this.faceT>0) st.face=this.faceV; if(this.faceForce) st.face=this.faceForce;   /* 11-27 A-0：送動作、表情給 A-1／A-2 */
+    this.P.anim(dt,{walk:moving,ph:this.ph,wave:this.wave>0&&!(this.cheer>0),rain,cheer:this.cheer>0,...st}); }
 }
 
 /* ---------- 走路／開車的東西 ---------- */
@@ -224,6 +226,9 @@ export function initLife(ctx){
       for(const e of N[u].nb){ const v=e.to, d=m+Math.hypot(N[u].x-N[v].x,N[u].z-N[v].z); if(d<dist[v]){ dist[v]=d; nxt[v]=u; } } }
     let best=-1, bd=1e9; for(let i=0;i<n;i++){ if(dist[i]>=1e9) continue; const d=Math.hypot(N[i].x-from.x,N[i].z-from.z); if(d>2.6) continue; const c=d+dist[i]; if(c<bd){ bd=c; best=i; } }
     if(best<0) return null; const out=[]; for(let i=best;i>=0;i=nxt[i]){ out.push(new THREE.Vector3(N[i].x,SW_Y,N[i].z)); if(i===target) break; } return out; }
+  /* ---------- 11-27 A-0：人物進建築（visit.js；路線檔在 visits/） ---------- */
+  const VIS=createVisits({ curB, lotGroup:pid=>ctx.lotGroup&&ctx.lotGroup(pid), WALK, walkPath, walkers, hexOf, SW_Y, root,
+    isVip:w=>w===mayor||w===avery, night:()=>night(), rain:()=>W.kind==='rain' });
   function startVisit(kind){ if(VISIT||!mayor||!avery) return false; const B=curB(), list=kind?[kind]:Object.keys(COURT);
     const ok=list.filter(k=>{ const p=pidOf(k); return p&&COURT[k].ok(B[p].lv)&&ctx.lotGroup&&ctx.lotGroup(p); });
     if(!ok.length) return false; const k=ok.length>1?ok.find(x=>x!==visitLast)||ok[0]:ok[0], pid=pidOf(k), g=ctx.lotGroup(pid), lv=B[pid].lv, h=hexOf(pid);
@@ -349,7 +354,7 @@ export function initLife(ctx){
       if(h.bridgeTo){ const o=hexes.find(x=>x.id===h.bridgeTo); if(o) cent.push({x:o.x,z:o.z}); } }   // 碼頭那一格：連它對面那一格也算「有建築」，人才走得過平交道
     setLive(cent, R*1.35);
     /* 建築有變動時，把已經跑到空地上的人直接挪回來（本來就不該在那裡，所以不怕看到瞬移） */
-    for(const w of walkers) if(liveDist(w.P.obj.position)>LIVE_R) w.place();
+    for(const w of walkers) if(!w.vis&&liveDist(w.P.obj.position)>LIVE_R) w.place();
   }
   let zebraKey='', zebraM=null, zebraVer=-1;
   function syncZebra(){ const v=ver(); if(v===zebraVer) return; zebraVer=v;
@@ -421,7 +426,7 @@ export function initLife(ctx){
 
   /* ---------- 點路上的人：說一句話 ---------- */
   const ray=new THREE.Raycaster(); let bubble=null;
-  function pick(r){ const hits=r.intersectObjects(people.map(p=>p.hit),false); if(!hits.length) return false; const p=people.find(x=>x.hit===hits[0].object);
+  function pick(r){ const hits=r.intersectObjects(people.filter(p=>p.obj.visible).map(p=>p.hit),false);   /* 11-27：走進建築（淡掉）的人點不到 */ if(!hits.length) return false; const p=people.find(x=>x.hit===hits[0].object);
     /* 家長 11-20 23:12：市長的話只有市長會說（原本「市長的家」蓋好後，TALK.mayor 會混進一般居民的話裡） */
     const B=curB(), types=[...new Set(Object.values(B).map(x=>x.t))].filter(t=>TALK[t]&&t!=='mayor'); const role=p.d&&p.d.cur, rain=W.kind==='rain';
     let pool, who='';
@@ -444,10 +449,11 @@ export function initLife(ctx){
       if(far!==farView){ farView=far; } }
     // 車和人：工作車沒有對應建築時不出現
     syncLive(); syncZebra(); syncPeople(dt); const raining=W.kind==='rain';
-    for(const w of walkers){ if(w===avery&&(w.mode==='follow'||w.mode==='visit')) continue; if(w===mayor&&VISIT) continue; w.update(dt,raining); }
+    VIS.update(dt); VIS.social(dt,raining,farView); VIS.faceTick(dt); VIS.refresh(ver());
+    for(const w of walkers){ if(w===avery&&(w.mode==='follow'||w.mode==='visit')) continue; if(w===mayor&&VISIT) continue; if(w.vis){ VIS.step(w,dt,raining); continue; } w.update(dt,raining); }
     if(mayor&&avery) visitTick(dt);
     if(mayor){ const mp=mayor.P.obj.position, tr=mayor.trail, last=tr[tr.length-1]; if(!last||Math.hypot(mp.x-last.x,mp.z-last.z)>.02){ tr.push({x:mp.x,y:mp.y,z:mp.z,r:mayor.P.obj.rotation.y}); if(tr.length>160) tr.shift(); }
-      for(const w of walkers){ if(w===mayor||w===avery||w.waveCD>0||w.wave>0) continue; const p=w.P.obj.position; if(!VISIT&&Math.hypot(p.x-mp.x,p.z-mp.z)<.9){ w.wave=1.6; w.waveCD=25+Math.random()*20; w.face=mp.clone(); if(mayor.wave<=0){ mayor.wave=1.2; mayor.face=p.clone(); } } } }   // 市長經過，居民揮手、市長也揮手
+      for(const w of walkers){ if(w===mayor||w===avery||w.waveCD>0||w.wave>0||w.vis||w.soc) continue; const p=w.P.obj.position; if(!VISIT&&Math.hypot(p.x-mp.x,p.z-mp.z)<.9){ w.wave=1.6; w.waveCD=25+Math.random()*20; w.face=mp.clone(); w.faceV='laugh'; w.faceT=1.6; if(mayor.wave<=0){ mayor.wave=1.2; mayor.face=p.clone(); } } } }   // 市長經過，居民揮手、市長也揮手
     if(avery&&mayor){ avery.modeT-=dt; const ap=avery.P.obj.position, mp=mayor.P.obj.position;                         // Avery：平常在市長的家附近；有時候走去找市長，跟在旁邊一起走
       if(avery.mode==='home'&&avery.modeT<0){ avery.mode='seek'; avery.anchor=()=>mayor.P.obj.position; avery.rad=.3; avery.modeT=40; }
       else if(avery.mode==='seek'&&(Math.hypot(ap.x-mp.x,ap.z-mp.z)<1.0||avery.modeT<0)){ avery.mode='follow'; avery.modeT=25+Math.random()*20; }
@@ -498,5 +504,5 @@ export function initLife(ctx){
       if(bubble.sx==null){ bubble.sx=tx; bubble.sy=ty; } else { const k=Math.min(1,dt*6); bubble.sx+=(tx-bubble.sx)*k; bubble.sy+=(ty-bubble.sy)*k; }
       el.style.left=Math.round(bubble.sx)+'px'; el.style.top=Math.round(bubble.sy)+'px'; } }
   }
-  return { visit:k=>startVisit(k), cheer, court:{COURT,CS}, lineup, stats:()=>({ready,people:people.length,movers:movers.length,roles:walkers.map(w=>w.P.mayor?'市長':w.P.avery?'Avery':(w.P.kind+(w.P.d&&w.P.d.cur!=='無'?'/'+w.P.d.cur:''))),avery:avery&&avery.mode,visit:VISIT&&{kind:VISIT.kind,phase:VISIT.phase,rest:+(VISIT.rest||0).toFixed(1)},pos:people.map(p=>p.obj.position.toArray().map(x=>+x.toFixed(1))),pp:people.slice(0,2).map(p=>[p.obj.position.x,p.obj.position.y,p.obj.position.z]),mw:mayor&&{a:mayor.a,b:mayor.b,t:mayor.t,wait:mayor.wait,wave:mayor.wave,cheer:mayor.cheer}}), update, pick, react, boostOf, setWeather, setNight:v=>{ T.force=v; lastSky=''; }, get weather(){ return W.kind; } };
+  return { visits:VIS, visit:k=>startVisit(k), cheer, court:{COURT,CS}, lineup, stats:()=>({ready,people:people.length,movers:movers.length,roles:walkers.map(w=>w.P.mayor?'市長':w.P.avery?'Avery':(w.P.kind+(w.P.d&&w.P.d.cur!=='無'?'/'+w.P.d.cur:''))),avery:avery&&avery.mode,visit:VISIT&&{kind:VISIT.kind,phase:VISIT.phase,rest:+(VISIT.rest||0).toFixed(1)},pos:people.map(p=>p.obj.position.toArray().map(x=>+x.toFixed(1))),pp:people.slice(0,2).map(p=>[p.obj.position.x,p.obj.position.y,p.obj.position.z]),mw:mayor&&{a:mayor.a,b:mayor.b,t:mayor.t,wait:mayor.wait,wave:mayor.wave,cheer:mayor.cheer}}), update, pick, react, boostOf, setWeather, setNight:v=>{ T.force=v; lastSky=''; }, get weather(){ return W.kind; } };
 }

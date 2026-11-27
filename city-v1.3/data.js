@@ -113,7 +113,7 @@ export const TYPES={
 export const MAXLV=Object.fromEntries(Object.entries(TYPES).map(([k,v])=>[k,v.maxLv]));
 /* 一開始的位置：市政廳、市長的家；測試模式另外把 7 棟第一階段擺在預設位置（11-25：發電、污水、垃圾搬到新格子） */
 export const HOME_PLOT={hall:'HEX-026',mayor:'HEX-027',school:'HEX-017'};
-export const TEST_LAYOUT={aquarium:'HEX-040',hall:'HEX-026',school:'HEX-017',mayor:'HEX-027',power:'HEX-041',water:'HEX-001',sewage:'HEX-052',trash:'HEX-053',home:'HEX-024',garden:'HEX-002',ranch:'HEX-003',library:'HEX-018',hospital:'HEX-028',market:'HEX-023',clinic:'HEX-016-A',conv:'HEX-016-B',park:'HEX-037-A',breakfast:'HEX-035-A'};
+export const TEST_LAYOUT={aquarium:'HEX-040',hall:'HEX-026',school:'HEX-017',mayor:'HEX-027',power:'HEX-041',water:'HEX-001',sewage:'HEX-052',trash:'HEX-053',home:'HEX-024',garden:'HEX-002',ranch:'HEX-003',library:'HEX-018',hospital:'HEX-028',market:'HEX-023',clinic:'HEX-016-A',conv:'HEX-016-B',park:'HEX-037-A',breakfast:'HEX-035-A',bakery:'HEX-035-B'};
 
 /* ---------- 規則：能不能蓋在這塊地、能不能升級 ---------- */
 export const nameOfT=t=>TYPES[t]?TYPES[t].name:t;

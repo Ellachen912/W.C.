@@ -223,7 +223,7 @@ body:has(.tree) .pan{display:none}
 </div>
 <div class="toast" id="toast" role="status"></div>
 <button id="tmB" type="button" hidden style="display:none">測試模式</button><!-- 家長 11-13 13:37：正式版，測試模式按鈕藏起來（程式保留） -->
-<div id="tmW"><button data-n="0" type="button">白天</button><button data-n=".5" type="button">傍晚</button><button data-n="1" type="button">晚上</button><button data-w="sun" type="button">晴</button><button data-w="rainbow" type="button">彩虹</button><button data-w="rain" type="button">雨</button></div>
+<div id="tmW"><button data-n="0" type="button">白天</button><button data-n=".5" type="button">傍晚</button><button data-n="1" type="button">晚上</button><button data-w="sun" type="button">晴</button><button data-w="rainbow" type="button">彩虹</button><button data-w="rain" type="button">雨</button><button id="tmRt" type="button">顯示路線</button><button id="tmGoB" type="button">叫人去這棟</button><button id="tmFace" type="button">表情</button><button id="tmChat" type="button">聊天</button></div>
 <div id="tmc" aria-label="這棟升降級"><button id="tmD" type="button" aria-label="降一級">−</button><b id="tmL"></b><button id="tmU" type="button" aria-label="升一級">＋</button><button id="tmX" type="button" aria-label="拆掉" class="x2">拆</button></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="false"></div>
 <nav class="dock" aria-label="主要功能">
@@ -581,7 +581,7 @@ function renderCity(){
     if(!lots[pid]) buildLot(pid,sig,()=>{
       const g=new THREE.Group(); g.position.set(pos.x,0,pos.z); g.rotation.y=pos.rot||0; scene.add(g); lotGroups.push(g); groupOf[pid]=g; g.userData.pid=pid; L.setRoot(g);
       if(PLOTS[pid]&&PLOTS[pid].half&&HALF_FIT[rec.t]&&!(rec.t==='temple'&&rec.lv>=2)){   // 半格建築往前收，背面不要和另一半背靠背（家長 11-19 13:08）
-        const [a,k]=HALF_FIT[rec.t], inner=new THREE.Group(); inner.position.z=a; inner.scale.z=k; g.add(inner); L.setRoot(inner); drawType(rec.t,rec.lv);
+        const [a,k]=HALF_FIT[rec.t], inner=new THREE.Group(); inner.position.z=a; inner.scale.z=k; g.add(inner); g.userData.fit=[a,k];   /* 11-27 A-0：人物路線用畫圖座標，換算時要知道往前收了多少 */ L.setRoot(inner); drawType(rec.t,rec.lv);
         for(const m of [...inner.children]) if(m.isMesh&&m.geometry&&m.geometry.type==='ExtrudeGeometry'){ inner.remove(m); g.add(m); }   // 底盤（半格石板）維持原大小、原位置
         L.setRoot(g); }
       else drawType(rec.t,rec.lv);
@@ -633,6 +633,12 @@ document.getElementById('tmD').onclick=()=>tmStep(-1); document.getElementById('
 document.getElementById('tmX').onclick=()=>{ if(!tmSel) return; delete TM.b[tmSel]; tmSel=null; tmc.classList.remove('on'); renderCity(); };
 function tmPlace(pid,t,occ){ TM.b[pid]={t,lv:1}; if(occ&&occ.length) TM.b[pid].occ=occ; setHi([]); renderCity(); bounce(pid); tmPick(pid); }
 { const tmB=document.getElementById('tmB');
+  /* 11-27 A-0：人物進建築的測試按鈕（顯示路線、叫人去這棟（先點一棟建築）、表情、聊天） */
+  { const V=()=>LIFE&&LIFE.visits, flash=(b,t)=>{ const o=b.dataset.t||(b.dataset.t=b.textContent); b.textContent=t; setTimeout(()=>b.textContent=o,2200); };
+    document.getElementById('tmRt').onclick=e=>{ const on=V()&&V().showRoutes(); e.target.classList.toggle('on',!!on); };
+    document.getElementById('tmGoB').onclick=e=>{ const pid=tmSel||selPid; flash(e.target,pid&&V()?V().sendTo(pid):'先點一棟建築'); };
+    document.getElementById('tmFace').onclick=()=>V()&&V().faceTest();
+    document.getElementById('tmChat').onclick=e=>{ const n=V()?V().chatTest():0; flash(e.target,n?n+' 組聊天':'附近沒有人'); }; }
   document.querySelectorAll('#tmW [data-n]').forEach(b=>b.onclick=()=>LIFE&&LIFE.setNight(+b.dataset.n)); document.querySelectorAll('#tmW [data-w]').forEach(b=>b.onclick=()=>LIFE&&LIFE.setWeather(b.dataset.w));
   tmB.onclick=()=>{ TM.on=!TM.on; document.getElementById('tmW').classList.toggle('on',TM.on); if(!TM.on&&LIFE) LIFE.setNight(null); tmB.classList.toggle('on',TM.on); tmB.textContent=TM.on?'離開測試':'測試模式'; if(!TM.on){ tmB.hidden=true; tmB.style.display='none'; } tmSel=null; tmc.classList.remove('on'); setHi([]);
     if(TM.on){ TM.b={}; for(const t in TEST_LAYOUT) TM.b[TEST_LAYOUT[t]]={t,lv:1}; UI.closeSheet(); }
@@ -733,7 +739,7 @@ if(previewAquarium){
   controls.target.set(pos.x,2,pos.z); camera.position.set(pos.x+4,6.5,pos.z+10.8); controls.update();
 }
 renderCity();
-let LIFE=null; window.__life=()=>LIFE; try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
+let LIFE=null; window.__life=()=>LIFE; if(new URLSearchParams(location.search).get('dev')==='1') window.__wc={camera,controls,groupOf,plotPos,TM,renderCity};   /* 11-27：測試用（網址加 ?dev=1 才有） */ try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
 
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clk=new THREE.Clock(); const v3=new THREE.Vector3();
