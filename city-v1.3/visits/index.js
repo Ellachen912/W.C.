@@ -6,4 +6,5 @@ export const LIST=['bakery',
   'hall','mayor','school','library','hospital',   // B-2
   'art','bank','temple','market','nightmarket',   // B-3
   'park','home','pier','garden','orchard','tea','ranch',   // B-4
+  'power','water','sewage','trash','train','gym','observatory',   // B-5
 ];

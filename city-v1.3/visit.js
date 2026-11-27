@@ -20,9 +20,9 @@ export const WORK={ 清潔隊員:['trash'], 警察:['policebox'], 消防員:['fi
   畫家:['art'], 太空人:['observatory'], '小黃帽＋書包':['school'], 老師:['school'] };
 export const FREE={ 清潔隊員:['park','nightmarket'], 警察:['bank','train','nightmarket'], 消防員:['water','conv'], 醫生:['breakfast','conv'], 護士:['breakfast','conv'],
   廚師:['market'], 郵差:['home','bank','library'], 公車司機:['train'], 建築工人:['breakfast','conv'], 農夫:['market'], 牧場主人:['market'], 船長:['market'], 畫家:['park'],
-  '小黃帽＋書包':['stationery','library','icecream','park'], 老師:['library','art'], 菜籃:['market','bakery','conv','temple'],
+  '小黃帽＋書包':['stationery','library','icecream','park','observatory'], 老師:['library','art','observatory'], 菜籃:['market','bakery','conv','temple'],
   背包:['library','bank','art','train','pier','observatory'], 遛狗:['park','market',...FOOD], 嬰兒車:['park','market',...FOOD] };
-const OLD=['temple','park','clinic','breakfast'], KID=['park','icecream'], ADULT=['conv','market','bank','bakery','burger','japanese','park','hall'];
+const OLD=['temple','park','clinic','breakfast'], KID=['park','icecream','gym'], ADULT=['conv','market','bank','bakery','burger','japanese','park','hall','gym'];
 const NIGHT_OK=['home','mayor','hospital','nightmarket'];
 
 export function createVisits(o){
@@ -43,7 +43,8 @@ export function createVisits(o){
   function chain(g,locals,y0,low,known){ let y=y0; return locals.map(([x,z],i)=>{ const w=toW(g,x,z), k=x+','+z; y=known&&known.has(k)?known.get(k):probe(g,w,y,low&&i===locals.length-1?.05:.3); w.y=y; return w; }); }
   const knownOf=(locals,pts)=>new Map(locals.map(([x,z],i)=>[x+','+z,pts[i].y]));
   /* 門口最近的人行道點 */
-  function nodeNear(p,pid){ const N=WALK.nodes, h=pid&&hexOf(pid), own=h&&h.walk&&h.walk.filter(i=>N[i].nb.length&&!N[i].dead); if(own&&own.length){ let best=-1, bd=1e9; for(const i of own){ const d=Math.hypot(N[i].x-p.x,N[i].z-p.z); if(d<bd){ bd=d; best=i; } } return best; }   /* 先找這棟自己那一格的人行道 */
+  function nodeNear(p,pid){ const N=WALK.nodes, r=pid&&curB()[pid], hs=pid?[pid,...((r&&r.occ)||[])].map(hexOf).filter(Boolean):[];   /* 佔 2 格的建築：兩格的人行道都算 */
+    const own=[...new Set(hs.flatMap(h=>h.walk||[]))].filter(i=>N[i].nb.length&&!N[i].dead); if(own.length){ let best=-1, bd=1e9; for(const i of own){ const d=Math.hypot(N[i].x-p.x,N[i].z-p.z); if(d<bd){ bd=d; best=i; } } return best; }   /* 先找這棟自己那一格的人行道 */
     let best=-1, bd=1e9; for(let i=0;i<N.length;i++){ const n=N[i]; if(!n.nb.length||n.dead) continue; const d=Math.hypot(n.x-p.x,n.z-p.z); if(d<bd){ bd=d; best=i; } } return best; }
 
   /* 人行道上正對門口的那一點：從最近的路口沿著人行道走到這裡，再轉進門（不要從路口斜斜穿過建地） */

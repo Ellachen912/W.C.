@@ -750,7 +750,7 @@ if(previewAquarium){
   controls.target.set(pos.x,2,pos.z); camera.position.set(pos.x+4,6.5,pos.z+10.8); controls.update();
 }
 renderCity();
-let LIFE=null; window.__life=()=>LIFE; if(new URLSearchParams(location.search).get('dev')==='1') window.__wc={camera,controls,groupOf,plotPos,TM,renderCity,get follow(){ return !!follow; }};   /* 11-27：測試用（網址加 ?dev=1 才有） */ try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
+let LIFE=null; window.__life=()=>LIFE; if(new URLSearchParams(location.search).get('dev')==='1') window.__wc={THREE,camera,controls,groupOf,plotPos,TM,renderCity,get follow(){ return !!follow; }};   /* 11-27：測試用（網址加 ?dev=1 才有） */ try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
 
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clk=new THREE.Clock(); const v3=new THREE.Vector3();
