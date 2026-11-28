@@ -5,7 +5,7 @@
    → Lv2 穀倉換成大牛舍、圓筒穀倉、圓形牛欄（乳牛、乾草架、水槽）、圓捆乾草、牛奶桶。
    11-28 07:59 家長：菜園加一圈木柵（不要貼著六角格邊緣、入口大一點，不要像關起來）。 */
 import * as THREE from 'three';
-import { prepareZooAnimal, zooMotion, wideWalk } from '../zoo-test/motion.js?v=farm1';
+import { prepareZooAnimal } from '../zoo-test/motion.js?v=farm2';
 import { animals, ROOT, setRoot, add, rbox, cyl, sphere, mat, tree, bush, prism, canvasTex, textPlate, anims, butterfly } from './lib.js';
 import { GARDEN, FARM, scarecrow, chicken, beam, rotors, awning } from './stage1.js';
 import { kit, FARMB, FOOD, ANIMAL } from './s1_kit.js';
@@ -143,22 +143,44 @@ function eggStand(X,Z,sc=1,rot=0,milk=false){ const prev=ROOT, g=new THREE.Group
   textPlate('新鮮雞蛋',.6,.17,'#fffaf0','#c0392b',x,.0+.1,z+.25); }
   setRoot(prev);
 }
-function walkingLivestock(kind,x,z,height,points,radius,side,phase){
-  const route=points.map(([dx,dz])=>[x+dx,z+dz]);
-  const [startX,startZ]=route[0];
+function walkingLivestock(kind,x,z,height,rotation,phase){
   let step;
   const motion=matchMedia('(prefers-reduced-motion: reduce)');
   const name=kind==='pig'?'Pig':'Cow';
-  const walker=kit(ANIMAL(name),startX,startZ,{h:height,y0:.071,then:model=>{
+  const walker=kit(ANIMAL(name),x,z,{h:height,y0:.071,rot:rotation,then:model=>{
     const wrap=model.parent;
     // Work in the original mesh coordinates before reattaching to the lot.
     wrap.remove(model);
     const anatomy=prepareZooAnimal(model,kind);
     wrap.add(model);
-    model.traverse(node=>{if(node.isMesh) node.castShadow=false;});
-    step=zooMotion(walker,model,kind,anatomy,wrap.scale.x,route,phase,null,
-      wideWalk(route,radius,side));
-    step(0);
+    const weights=[];
+    model.traverse(node=>{
+      if(node.isMesh) node.castShadow=false;
+      if(node.morphTargetInfluences) weights.push(node.morphTargetInfluences);
+    });
+    const heading=rotation+Math.atan2(...anatomy.profile.forward);
+    const distance=kind==='pig'?.11:.14;
+    const offsets=[0,.50,.69,.19];
+    const ease=u=>u*u*(3-2*u);
+    step=time=>{
+      const position=(time+phase)%8;
+      const advancing=position<1.6;
+      const retreating=position>=3.7&&position<5.3;
+      const active=advancing||retreating;
+      const u=active?(position-(advancing?0:3.7))/1.6:0;
+      const progress=active?(advancing?ease(u):1-ease(u)):position<3.7?1:0;
+      walker.position.x=x+Math.sin(heading)*distance*progress;
+      walker.position.z=z+Math.cos(heading)*distance*progress;
+      const envelope=active?Math.sin(Math.PI*u):0;
+      for(const pose of weights){
+        for(let i=0;i<4;i++){
+          const swing=Math.sin((u*1.5+offsets[i])*Math.PI*2);
+          pose[i*3]=swing*anatomy.height*.115*envelope*(retreating?-1:1);
+          pose[i*3+1]=Math.max(0,swing)*anatomy.height*.080*envelope;
+        }
+        pose[pose.length-1]=active?0:.68*Math.sin(position*Math.PI*.71);
+      }
+    };
   }});
   walker.name=kind==='pig'?'牧場散步小豬':'牧場散步乳牛';
   walker.userData.moving=true;
@@ -174,7 +196,7 @@ function pigPen(x,z,r){                    // 豬圈：圓柵欄＋泥巴坑＋�
   const mud=add(new THREE.Mesh(new THREE.CircleGeometry(r*.42,24),mat('#7a5a3a',{roughness:.4}))); mud.rotation.x=-Math.PI/2; mud.position.set(x+r*.2,.045,z+r*.2); mud.scale.y=.7;
   rbox(.5,.12,.14,'#8a5a3a',x-r*.3,0,z+r*.45,.01); rbox(.44,.02,.08,'#e3c98a',x-r*.3,.11,z+r*.45,.005);
   prism(.55,.5,.38,'#a8443a',x-r*.35,0,z-r*.4,'x');
-  walkingLivestock('pig',x,z,.34,[[-.16,-.12],[.07,-.21],[.32,-.19]],.16,-1,0);
+  walkingLivestock('pig',x+.16,z-.11,.34,-1.48,0);
   kit(ANIMAL('Pig'),x-.45,z+.20,{h:.31,rot:-2.3,y0:.071});
   roundFence(x,z,r);
 }
@@ -183,7 +205,7 @@ function hayBale(x,z,rot=0){ const b=cyl(.2,.2,.32,'#e3c46a',x,.2,z,16); b.rotat
 function cowPen(x,z,r){                    // 牛欄：圓柵欄＋草地＋乾草架＋水槽＋乳牛
   const g=add(new THREE.Mesh(new THREE.CircleGeometry(r-.05,40),mat('#9ad874',{roughness:.95}))); g.rotation.x=-Math.PI/2; g.position.set(x,.045,z);
   rbox(.5,.14,.18,'#9aa3b2',x+r*.4,0,z-r*.45,.02); rbox(.44,.02,.12,mat('#7fc6d8',{roughness:.2}),x+r*.4,.13,z-r*.45,.005);
-  walkingLivestock('cow',x,z,.50,[[-.13,.22],[.04,.24],[.29,.18]],.14,1,2);
+  walkingLivestock('cow',x+.10,z+.22,.50,1.15,2.2);
   kit(ANIMAL('Cow'),x-.39,z-.26,{h:.49,rot:1.2,y0:.071});
   roundFence(x,z,r);
 }
