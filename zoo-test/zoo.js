@@ -70,15 +70,27 @@ function trees(g,points){
   for(const [x,z,s,color] of points) L.tree(x,z,s,color??'#7da26c');
   L.setRoot(null);
 }
-function broadTree(g,x,y,z,height,spread){
-  const bark='#9b7553';
-  L.cyl(.035,.085,height,bark,x,y,z,7,g);
-  for(const [dx,dz,dy,color] of [[-.32,.06,.04,'#6c985e'],[.32,-.12,.13,'#7da768'],[.02,.16,.39,'#8bb477']]){
-    const top=[x+dx*spread,y+height+dy,z+dz*spread];
-    beam(g,[x,y+height*.60,z],top,.035,bark);
-    const crown=L.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),L.mat(color,{flatShading:true})),g);
+function umbrellaTree(g,x,z,height,spread,turn){
+  const tree=group(g,'傘冠樹',x);
+  tree.position.set(x,.09,z);
+  tree.rotation.y=turn;
+  const bark='#906444';
+  const fork=[.10,height*.65,-.055];
+  beam(tree,[0,0,0],fork,.066,bark);
+  const branches=[
+    [-.52,.03,.05,'#688344'],
+    [-.15,-.29,.14,'#77934d'],
+    [.43,-.08,.06,'#78924d'],
+    [.39,.30,.02,'#668347'],
+    [-.23,.28,.10,'#80994f'],
+  ];
+  for(const [dx,dz,lift,color] of branches){
+    const top=[dx*spread,height+lift,dz*spread];
+    beam(tree,fork,top,.034,bark);
+    const crown=L.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),
+      L.mat(color,{flatShading:true})),tree);
     crown.position.set(...top);
-    crown.scale.set(.57*spread,.40*spread,.49*spread);
+    crown.scale.set(.56*spread,.20*spread,.43*spread);
   }
 }
 
@@ -94,7 +106,8 @@ const pocket=viewingPocket.map(([x,z])=>[x+left,z]);
 patch(site,boundary,-.28,.28,'#a48c6f',pocket);
 patch(site,boundary,0,.09,'#aec897',pocket);
 const creek=group(site,'象群溪谷',left);
-const forest=group(site,'長頸鹿草地',right);
+const forest=group(site,'林坡草地',right);
+const savanna=group(site,'中央長頸鹿草地');
 patch(creek,viewingPocket,-.28,.045,'#d7bd91');
 const river=[[-2.68,.34],[-2.74,-.76],[-1.97,-1.52],[-.93,-1.42],[-.60,-.77],[-.89,.25],[-1.55,.92],[-2.27,.85]];
 patch(creek,river,.092,.02,'#75adab');
@@ -113,9 +126,9 @@ patch(forest,[[-1.63,-1.62],[-.76,-2.69],[.40,-3.22],[1.36,-2.41],[2.34,-1.28],[
 patch(forest,[[.45,-2.79],[1.08,-2.24],[1.89,-1.40],[1.65,-.90],[.91,-.97],[.59,-1.48]],.58,.18,'#8fa677');
 stones(forest,[[-1.74,.40,-1.43,.51],[-.83,.48,-2.33,.76],[.63,.70,-2.69,.62],[1.88,.52,-1.54,.56]]);
 trees(forest,[[-2.13,-1.84,.67],[.15,-3.47,.78],[1.65,-2.55,.69]]);
-broadTree(forest,-2.52,.09,-.77,1.74,.94);
-broadTree(forest,-1.37,.337,-1.05,2.03,1.06);
-broadTree(forest,.57,.587,-2.35,1.89,.89);
+umbrellaTree(savanna,-1.38,-1.48,1.91,.91,.35);
+umbrellaTree(savanna,.25,-1.50,2.23,.97,-.48);
+umbrellaTree(savanna,2.05,-1.44,1.99,1.02,.82);
 
 const gate=group(site,'疊石入口');
 ribbon(gate,[[0,.105,edge],[0,.105,1.52],[-.20,.109,1.00],[-half,.11,.82]],.67,pathColor);
@@ -164,7 +177,7 @@ L.cyl(.023,.026,.59,metal,.62,.05,edge,6,perimeter);
 const animals=[
   [creek,'elephant',-.69,.159,-.31,1.67,2.0],
   [creek,'elephant',.29,.159,.18,.96,1.16],
-  [forest,'giraffe',.05,.337,-.22,1.89,-.60],
+  [savanna,'giraffe',1.05,.093,.13,1.89,-.60],
   [forest,'ostrich',.32,.093,2.29,1.02,-.40],
   [forest,'doe',1.44,.76,-1.54,.75,-.48],
   [forest,'stag',.91,.76,-2.34,.87,1.1],
@@ -201,7 +214,7 @@ orbit.maxPolarAngle=Math.PI*.49;
 const views={
   all:{eye:[4.2,10,17],target:[0,.30,0],zoom:1},
   creek:{eye:[-center+.6,1.12,5.6],target:[-center-1.16,.42,-.12],zoom:3.0},
-  forest:{eye:[center-.8,2.35,5.1],target:[center+.12,.65,-.83],zoom:2.75},
+  forest:{eye:[center-.8,2.35,5.1],target:[2.35,.71,-.46],zoom:2.35},
 };
 function go(view){
   const {eye,target,zoom}=views[view];
