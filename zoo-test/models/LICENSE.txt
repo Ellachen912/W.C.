@@ -1,0 +1,4 @@
+Low Poly Animals — EdwinRC
+https://sketchfab.com/3d-models/low-poly-animals-4e5d0b71c2de49189dfa81476f4ae203
+CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Changes: separated six animals, reset model origins, and placed them at scaled positions in the zoo.
