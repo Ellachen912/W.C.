@@ -1,4 +1,4 @@
-import { prepareZooAnimal, zooMotion } from './motion.js?v=1';
+import { prepareZooAnimal, zooMotion } from './motion.js?v=3';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -125,6 +125,26 @@ for(const x of [-2.09,-1.19]) L.cyl(.028,.034,.46,'#526e62',x,-.22,1.015,6,creek
 patch(forest,[[-2.39,-.82],[-1.73,-1.99],[-.71,-3.01],[.52,-3.41],[1.60,-2.46],[2.67,-1.27],[2.43,.42],[1.08,.9],[-.34,.42]],.087,.25,'#9eb787');
 patch(forest,[[-1.63,-1.62],[-.76,-2.69],[.40,-3.22],[1.36,-2.41],[2.34,-1.28],[1.84,-.56],[.67,-.63],[-.37,-.92]],.332,.25,'#9fba86');
 patch(forest,[[.45,-2.79],[1.08,-2.24],[1.89,-1.40],[1.65,-.90],[.91,-.97],[.59,-1.48]],.58,.18,'#8fa677');
+// The grass ramp bridges the terrace lips at the heights used by the deer.
+const deerRamp=[[-1.45,.763],[-.90,.763],[-.52,.584],[-.04,.337],[.35,.337]];
+function deerGround(z){
+  for(let i=1;i<deerRamp.length;i++){
+    const [a,low]=deerRamp[i-1], [b,high]=deerRamp[i];
+    if(z<=b) return THREE.MathUtils.lerp(low,high,THREE.MathUtils.clamp((z-a)/(b-a),0,1));
+  }
+  return deerRamp.at(-1)[1];
+}
+ribbon(forest,deerRamp.map(([z,y])=>[1.30,y,z]),1.28,'#9bb785');
+for(const x of [.66,1.94]){
+  const wall=new THREE.Shape(deerRamp.map(([z,y])=>new THREE.Vector2(z,y)));
+  wall.lineTo(.35,.088);
+  wall.lineTo(-1.45,.088);
+  wall.closePath();
+  const mesh=L.add(new THREE.Mesh(new THREE.ShapeGeometry(wall),
+    L.mat('#8fa879',{side:THREE.DoubleSide})),forest);
+  mesh.rotation.y=-Math.PI/2;
+  mesh.position.x=x;
+}
 stones(forest,[[-1.74,.40,-1.43,.51],[-.83,.48,-2.33,.76],[.63,.70,-2.69,.62],[1.88,.52,-1.54,.56]]);
 trees(forest,[[-2.13,-1.84,.67],[.15,-3.47,.78],[1.65,-2.55,.69]]);
 umbrellaTree(savanna,-1.38,-1.48,1.91,.91,.35);
@@ -182,8 +202,9 @@ const animals=[
   [savanna,'giraffe',2.44,.093,.66,1.31,.28],
   [forest,'ostrich',.32,.093,2.29,1.02,-.40],
   [forest,'ostrich',1.63,.093,1.67,.98,.80],
-  [forest,'doe',1.44,.76,-1.54,.75,-.48],
-  [forest,'stag',.91,.76,-2.34,.87,1.1],
+  [forest,'doe',1.60,.763,-1.29,.75,-.48],
+  [forest,'stag',.92,.763,-1.30,.87,1.1],
+  [forest,'ostrich',-1.52,.093,1.24,1.00,-.72],
 ];
 
 // Routes are proposals in local habitat coordinates. Each starts at the displayed animal.
@@ -194,19 +215,23 @@ const plans=[
   {animal:3,color:'#a2662b',stops:[[2.56,.26],[2.70,-.18]]},
   {animal:4,color:'#8d5379',stops:[[.04,2.64],[-.25,2.82]]},
   {animal:5,color:'#8d5379',stops:[[1.96,1.46],[2.45,1.44]]},
+  {animal:6,color:'#75653e',stops:[[1.61,-.64],[1.62,.12]],ground:deerGround},
+  {animal:7,color:'#75653e',stops:[[.94,-.63],[.96,.19]],ground:deerGround},
+  {animal:8,color:'#8d5379',stops:[[-1.78,1.30],[-2.04,.93]]},
 ];
 const routes=group(site,'動物短程路線');
-for(const {animal,color,stops} of plans){
+for(const {animal,color,stops,ground} of plans){
   const [habitat,,x,y,z]=animals[animal];
   const route=group(routes,'預定走路方向',habitat.position.x);
   const points=[[x,z],...stops];
-  ribbon(route,points.map(([px,pz])=>[px,y+.035,pz]),.065,color);
+  ribbon(route,points.map(([px,pz])=>[px,(ground?.(pz)??y)+.035,pz]),.065,color);
   const [ax,az]=points.at(-2),[bx,bz]=points.at(-1);
   const len=Math.hypot(bx-ax,bz-az);
   const dx=(bx-ax)/len,dz=(bz-az)/len;
+  const endY=ground?.(bz)??y;
   patch(route,[[bx+dx*.12,bz+dz*.12],[bx-dx*.09-dz*.10,bz-dz*.09+dx*.10],
-    [bx-dx*.09+dz*.10,bz-dz*.09-dx*.10]],y+.034,.006,color);
-  L.cyl(.052,.052,.014,color,bx,y+.035,bz,9,route);
+    [bx-dx*.09+dz*.10,bz-dz*.09-dx*.10]],endY+.034,.006,color);
+  L.cyl(.052,.052,.014,color,bx,endY+.035,bz,9,route);
 }
 routes.visible=false;
 const routeButton=document.querySelector('#routes');
@@ -237,7 +262,7 @@ async function addAnimal([parent,id,x,y,z,length,yaw],index){
   model.scale.setScalar(scale);
   model.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=true;}});
   const plan=plans.find(plan=>plan.animal===index);
-  return zooMotion(animal,model,id,anatomy,scale,plan&&[[x,z],...plan.stops],index);
+  return zooMotion(animal,model,id,anatomy,scale,plan&&[[x,z],...plan.stops],index,plan?.ground);
 }
 bakeLot(site);
 

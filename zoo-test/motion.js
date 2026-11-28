@@ -6,8 +6,8 @@ const profiles={
   elephant:{forward:[.81,-.59],legTop:.46,period:12.4,walk:2.25,stride:.34,lift:.060,head:.20},
   giraffe:{forward:[-.64,.77],legTop:.43,period:11.7,walk:2.00,stride:.39,lift:.061,head:.52},
   ostrich:{forward:[.83,.55],legTop:.44,period:8.9,walk:1.65,stride:.36,lift:.084,head:.47},
-  doe:{forward:[.90,-.43],head:.48},
-  stag:{forward:[.40,.92],head:.45},
+  doe:{forward:[.90,-.43],legTop:.45,period:10.7,walk:2.3,stride:.40,lift:.062,head:.48},
+  stag:{forward:[.40,.92],legTop:.44,period:11.2,walk:2.4,stride:.40,lift:.061,head:.45},
 };
 
 // Build small vertex poses in the model's own coordinates. Body vertices above
@@ -26,7 +26,8 @@ export function prepareZooAnimal(model,id){
     const geometry=mesh.geometry.clone();
     const position=geometry.attributes.position;
     const legCount=p.legTop?(id==='ostrich'?2:4):0;
-    const idle=legCount*2;
+    const channels=p.legTop&&id!=='ostrich'?3:2;
+    const idle=legCount*channels;
     const values=Array.from({length:idle+1},()=>new Float32Array(position.count*3));
     const v=new THREE.Vector3();
     const rows=Array.from({length:position.count},(_,i)=>{
@@ -47,8 +48,9 @@ export function prepareZooAnimal(model,id){
         const leg=lateral+(legCount===4&&q.long<footCenter?2:0);
         let weight=1-smooth(q.h/p.legTop);
         if(id==='elephant') weight*=1-smooth((q.long-foremost+extent*.30)/(extent*.17));
-        put(leg*2,i,fx*weight,0,fz*weight);
-        put(leg*2+1,i,0,weight,0);
+        put(leg*channels,i,fx*weight,0,fz*weight);
+        put(leg*channels+1,i,0,weight,0);
+        if(channels===3) put(leg*channels+2,i,fz*weight,0,-fx*weight);
       }
       const w=id==='elephant'
         ? smooth((q.long-foremost+extent*.25)/(extent*.19))*(1-smooth((q.h-.24)/.38))
@@ -68,34 +70,51 @@ export function prepareZooAnimal(model,id){
   return {height,profile:p};
 }
 
-export function zooMotion(animal,model,id,anatomy,scale,points,index){
+export function zooMotion(animal,model,id,anatomy,scale,points,index,ground){
   const {profile:p,height}=anatomy;
   const morphs=[];
   model.traverse(mesh=>{if(mesh.morphTargetInfluences) morphs.push(mesh.morphTargetInfluences);});
   const initial=animal.rotation.y;
   const forward=Math.atan2(...p.forward);
+  const pitchAxis=new THREE.Vector3(Math.cos(forward),0,-Math.sin(forward));
   const curve=points&&new THREE.QuadraticBezierCurve(
     new THREE.Vector2(...points[0]),new THREE.Vector2(...points[1]),new THREE.Vector2(...points[2]));
   const routeLength=curve?.getLength()??0;
   const offsets=id==='ostrich'?[0,.5]:[0,.50,.72,.22];
+  const heavy=id==='elephant'||id==='giraffe';
+  const channels=id==='ostrich'?2:3;
+  const gaitShift=heavy||ground?3.7:0;
   const stride=p.stride*scale*height;
   const cycles=Math.max(1,Math.round(routeLength/Math.max(.07,stride)));
   const ease=t=>t<.16?t*t/.32:t>.84?1-(1-t)*(1-t)/.32:t-.08;
   const unitEase=t=>t<.16?ease(t)/.84:t>.84?1-(1-t)*(1-t)/(.32*.84):ease(t)/.84;
   const angle=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
-  function setGait(phase,envelope,stepLength,idle){
+  function setGait(phase,envelope,stepLength,idle,turning=0){
     for(const weights of morphs){
-      const legs=(weights.length-1)/2;
+      const legs=(weights.length-1)/channels;
       for(let i=0;i<legs;i++){
         const u=(phase+offsets[i])%1;
         const swing=u>=.58;
         const v=(u-.58)/.42;
         const travel=swing?-.29+.58*smooth(v):.29-u;
-        weights[i*2]=travel*stepLength/scale*envelope;
-        weights[i*2+1]=(swing?Math.sin(v*Math.PI):0)*p.lift*height*envelope;
+        const lift=swing?Math.sin(v*Math.PI):0;
+        const k=i*channels;
+        weights[k]=travel*stepLength/scale*envelope;
+        weights[k+1]=lift*p.lift*height*envelope;
+        if(channels===3) weights[k+2]=travel*turning*height*(i<2?1:-1)*envelope;
       }
       weights[weights.length-1]=idle;
     }
+  }
+  function followSlope(){
+    if(!ground) return;
+    const z=animal.position.z;
+    animal.position.y=ground(z)+.017;
+    // Local +Z pitch, after compensating for the direction of the source mesh.
+    const look=Math.cos(animal.rotation.y+forward);
+    const grade=(ground(z+.15)-ground(z-.15))/.30;
+    const pitch=-Math.atan(grade*look)*.65;
+    model.quaternion.setFromAxisAngle(pitchAxis,pitch);
   }
   return time=>{
     const idle=Math.sin(time*(id==='ostrich'?2.4:1.25)+index*1.8);
@@ -103,9 +122,11 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index){
       setGait(0,0,0,idle);
       return;
     }
-    const t=(time+index*.94)%p.period;
-    const turn=.95, outbound=turn+p.walk, restEnd=outbound+1.25;
-    const returning=restEnd+turn, stop=returning+p.walk;
+    const t=(time+index*.94)%(p.period+gaitShift);
+    const turn=heavy?1.75:ground?1.38:.95;
+    const turnBack=heavy?(id==='elephant'?3.6:3.15):ground?2.38:turn;
+    const outbound=turn+p.walk, restEnd=outbound+1.25;
+    const returning=restEnd+turnBack, stop=returning+p.walk;
     const back=t>=returning&&t<stop;
     const walking=(t>=turn&&t<outbound)||back;
     const raw=walking?(t-(back?returning:turn))/p.walk:0;
@@ -117,11 +138,34 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index){
     const endYaw=Math.atan2(curve.v2.x-curve.v1.x,curve.v2.y-curve.v1.y)-forward;
     const startYaw=Math.atan2(curve.v1.x-curve.v0.x,curve.v1.y-curve.v0.y)-forward;
     animal.position.x=point.x; animal.position.z=point.y;
-    if(t<turn) animal.rotation.y=angle(initial,startYaw,smooth(t/turn));
+    let pivot;
+    if(t<turn) pivot={from:initial,to:startYaw,u:t/turn,steps:1};
     else if(walking) animal.rotation.y=yaw+(back?Math.PI:0);
     else if(t<restEnd) animal.rotation.y=endYaw;
-    else if(t<returning) animal.rotation.y=endYaw+Math.PI*smooth((t-restEnd)/turn);
-    else animal.rotation.y=angle(startYaw+Math.PI,initial,smooth((t-stop)/turn));
+    else if(t<returning) pivot={from:endYaw,to:endYaw+Math.PI,u:(t-restEnd)/turnBack,steps:2};
+    else pivot={from:startYaw+Math.PI,to:initial,u:Math.min(1,(t-stop)/turn),steps:1};
+
+    if(pivot){
+      const {from,to,u,steps}=pivot;
+      const delta=steps===2?Math.PI:Math.atan2(Math.sin(to-from),Math.cos(to-from));
+      if(heavy||ground){
+        // Change direction across several planted steps. The hips trace a shallow
+        // loop that starts and finishes at the same route point.
+        const envelope=smooth(u/.17)*smooth((1-u)/.17)*Math.min(1,Math.abs(delta)*1.5);
+        const phase=u*steps;
+        const pulse=Math.sin(TAU*phase)*.019*envelope;
+        animal.rotation.y=from+delta*(smooth(u)+pulse);
+        const bow=Math.sin(Math.PI*u)**2*Math.min(.12,scale*height*.085);
+        const direction=from+forward+delta*.5;
+        animal.position.x+=Math.sin(direction)*bow;
+        animal.position.z+=Math.cos(direction)*bow;
+        followSlope();
+        setGait(phase,envelope,.10*height*scale,idle*.45,.065*Math.sign(delta));
+        return;
+      }
+      animal.rotation.y=angle(from,to,smooth(u));
+    }
+    followSlope();
     const amplitude=walking?smooth(raw/.14)*smooth((1-raw)/.14):0;
     setGait(progress*cycles,amplitude,routeLength/cycles,idle*(walking?.35:1));
   };
