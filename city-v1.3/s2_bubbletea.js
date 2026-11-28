@@ -131,5 +131,5 @@ function bubbleTea(){
   rooftopCup();
 }
 
-export const BUBBLETEA_LV=[['bubbletea','珍珠奶茶店',bubbleTea,'half']];
+export const BUBBLETEA_LV=[['boba','珍珠奶茶店',bubbleTea,'half']];
 export const BUBBLETEA_TOP=[0,2.94];

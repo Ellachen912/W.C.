@@ -262,6 +262,7 @@ import { STATION_LV, STATION_TOP, STN, buildRail, railDist, buildTrench } from '
 import { FIRE_LV, FIRE_TOP } from './s2_fire.js';
 import { ICE_LV, BURGER_LV, JP_LV, FOOD2_TOP } from './s2_food.js';
 import { JAPANESE_LV, JAPANESE_TOP } from './s2_japanese.js';
+import { BUBBLETEA_LV, BUBBLETEA_TOP } from './s2_bubbletea.js';
 import { ICECREAM_LV, ICECREAM_TOP } from './s2_icecream.js';
 import { BAKERY_LV, BAKERY_TOP } from './s2_bakery.js';
 import { NIGHT_LV, NIGHT_TOP } from './s2_nightmarket.js';
@@ -516,8 +517,8 @@ function plotGlow(pid,mat){ const p=PLOTS[pid], c=tilePos(p.tile), g=new THREE.S
   const m=new THREE.Mesh(g,mat); m.position.set(c.x,.095,c.z+(p.half?p.side*.06:0)); m.renderOrder=2; return m; }
 
 /* ---------- 建築種類 → 怎麼畫、名牌多高 ---------- */
-const S1B={ power:POWER_LV, water:WATER_LV, sewage:SEWAGE_LV, trash:TRASH_LV, home:HOME_LV, garden:GARDEN_LV, ranch:RANCH_LV, library:LIBRARY_LV, clinic:CLINIC_LV, hospital:HOSPITAL_LV, breakfast:[BREAKFAST_LV[1]], market:MARKET_LV, conv:CONV_LV, park:PARK_LV, observatory:ASTRO_LV, pier:PIER_LV, train:STATION_LV, firestation:FIRE_LV, policebox:POLICE_LV, temple:TEMPLE_LV, stationery:STATIONERY_LV, art:ART_LV, gym:GYM_LV, bank:BANK_LV, orchard:ORCHARD_LV, tea:TEA_LV, bakery:[BAKERY_LV[1]], nightmarket:[NIGHT_LV[1]], fastfood:FASTFOOD_LV, icecream:ICECREAM_LV, burger:FASTFOOD_LV, japanese:JAPANESE_LV };
-const S1TOP={ power:[0,3.4,3.6,3.6], water:[0,2.8,3.0,3.6], sewage:[0,2.0,2.4,4.6], trash:[0,3.2,4.6], home:[0,2.6,2.8,4.8], garden:[0,2.2,3.8], ranch:[0,3.2,3.6], library:[0,3.1,4.2,5.3], clinic:[0,3.0], hospital:[0,4.1,6.2,8.4], breakfast:[0,4.2], market:[0,2.9,2.9,4.0], conv:[0,2.9], park:[0,2.3,2.3], observatory:ASTRO_TOP, pier:PIER_TOP, train:STATION_TOP, firestation:FIRE_TOP, policebox:POLICE_TOP, temple:TEMPLE_TOP, stationery:STATIONERY_TOP, art:ART_TOP, gym:GYM_TOP, bank:BANK_TOP, orchard:ORCHARD_TOP, tea:TEA_TOP, bakery:[0,BAKERY_TOP[2]], nightmarket:[0,NIGHT_TOP[2]], fastfood:FASTFOOD_TOP, icecream:ICECREAM_TOP, burger:FASTFOOD_TOP, japanese:JAPANESE_TOP };
+const S1B={ power:POWER_LV, water:WATER_LV, sewage:SEWAGE_LV, trash:TRASH_LV, home:HOME_LV, garden:GARDEN_LV, ranch:RANCH_LV, library:LIBRARY_LV, clinic:CLINIC_LV, hospital:HOSPITAL_LV, breakfast:[BREAKFAST_LV[1]], market:MARKET_LV, conv:CONV_LV, park:PARK_LV, observatory:ASTRO_LV, pier:PIER_LV, train:STATION_LV, firestation:FIRE_LV, policebox:POLICE_LV, temple:TEMPLE_LV, stationery:STATIONERY_LV, art:ART_LV, gym:GYM_LV, bank:BANK_LV, orchard:ORCHARD_LV, tea:TEA_LV, bakery:[BAKERY_LV[1]], nightmarket:[NIGHT_LV[1]], fastfood:FASTFOOD_LV, icecream:ICECREAM_LV, boba:BUBBLETEA_LV, burger:FASTFOOD_LV, japanese:JAPANESE_LV };
+const S1TOP={ power:[0,3.4,3.6,3.6], water:[0,2.8,3.0,3.6], sewage:[0,2.0,2.4,4.6], trash:[0,3.2,4.6], home:[0,2.6,2.8,4.8], garden:[0,2.2,3.8], ranch:[0,3.2,3.6], library:[0,3.1,4.2,5.3], clinic:[0,3.0], hospital:[0,4.1,6.2,8.4], breakfast:[0,4.2], market:[0,2.9,2.9,4.0], conv:[0,2.9], park:[0,2.3,2.3], observatory:ASTRO_TOP, pier:PIER_TOP, train:STATION_TOP, firestation:FIRE_TOP, policebox:POLICE_TOP, temple:TEMPLE_TOP, stationery:STATIONERY_TOP, art:ART_TOP, gym:GYM_TOP, bank:BANK_TOP, orchard:ORCHARD_TOP, tea:TEA_TOP, bakery:[0,BAKERY_TOP[2]], nightmarket:[0,NIGHT_TOP[2]], fastfood:FASTFOOD_TOP, icecream:ICECREAM_TOP, boba:BUBBLETEA_TOP, burger:FASTFOOD_TOP, japanese:JAPANESE_TOP };
 const TOPS=[0,3.2,3.6,4.2,5.0,5.5], TOPM=[0,2.4,2.9,3.4,3.9,4.3];
 const TOPH=(t,lv)=>t==='aquarium'?4.6:t==='zoo'?3.3:t==='dino'?3.45:S1B[t]?S1TOP[t][lv]:t==='mayor'?TOPM[lv]:TOPS[lv]*(t==='school'?.85:1);
 /* 整格建築的六角底盤（家長 11-13 09:46）：市政廳草地、市長的家淺石板、學校米色、菜園牧場泥土色；四座基礎建設不鋪；一之一 7 棟自己畫 */
@@ -569,7 +570,7 @@ let selPid=null;   /* 家長 11-12：建築名牌平常不顯示，點到那棟�
 function addTag(label,sub,cls,p,onclick,pid){ const b=document.createElement('button'); b.type='button'; b.className='tag '+cls; b.innerHTML=`${label}<small>${sub}</small>`; b.onclick=onclick; tagsEl.appendChild(b); tags.push({el:b,p,pid}); return b; }
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* 半格建築：z' = a + k·z，把建物背面收到 z≈-1.25（原本貼到 -1.4～-1.84，跟另一半背靠背）；前面最多到 1.6。數字由各建築量出來的前後範圍算的 */
-const HALF_FIT={ breakfast:[.064,.853], clinic:[.30,1], conv:[.27,.944], firestation:[.095,.934], policebox:[.19,1], temple:[.29,1], stationery:[.15,1], bakery:[.59,1], fastfood:[.19,.87], burger:[.19,.87], icecream:[.30,.953] };
+const HALF_FIT={ breakfast:[.064,.853], clinic:[.30,1], conv:[.27,.944], firestation:[.095,.934], policebox:[.19,1], temple:[.29,1], stationery:[.15,1], bakery:[.59,1], fastfood:[.19,.87], burger:[.19,.87], icecream:[.30,.953], boba:[.04,.95] };
 const campusTiles=L.canvasTex((ctx,size)=>{
   ctx.fillStyle='#bdb5a1';ctx.fillRect(0,0,size,size);
   const colors=['#dfd7c7','#e3dbca','#d9d0be','#e8e0cc'];

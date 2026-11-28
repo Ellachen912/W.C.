@@ -83,7 +83,7 @@ export const TYPES={
   burger:T('漢堡披薩店','food',{size:'half',maxLv:1,cost:[0,6],req:[['garden',2],['ranch',2]],stage:2}),
   japanese:T('日式料理店','food',{size:'half',maxLv:1,cost:[0,6],req:[['garden',2],['pier',1]],stage:2}),
   nightmarket:T('夜市','food',{maxLv:1,cost:[0,6],req:[['food',2]],stage:2}),   /* 家長 11-20 08:44 先不開放；11-28 01:15 家長：夜市可以開放了 */
-  donut:T('甜甜圈店','food',{size:'half',maxLv:1,req:[['orchard',1],['bakery',1]],soon:1}), boba:T('珍珠奶茶店','food',{size:'half',maxLv:1,req:[['tea',1]],soon:1}), cafe:T('咖啡廳','food',{size:'half',maxLv:1,req:[['tea',1],['bakery',1]],soon:1}),
+  donut:T('甜甜圈店','food',{size:'half',maxLv:1,req:[['orchard',1],['bakery',1]],soon:1}), boba:T('珍珠奶茶店','food',{size:'half',maxLv:1,cost:[0,6],req:[['tea',1]],stage:2}), cafe:T('咖啡廳','food',{size:'half',maxLv:1,req:[['tea',1],['bakery',1]],soon:1}),
   // 商業與生活（家長 11-20 23:33、11-25 16:36：百貨公司、觀光飯店直接移除；商店街改叫老街；書店搬到其他區、改半格）
   market:T('市場','biz',{cost:C(5,3),req:{1:[['garden',1]],2:[['garden',1],['orchard',1]]}}),
   bank:T('銀行','biz',{maxLv:2,cost:C(5,2),req:{1:[['market',1]],2:[['any',['pier','train']]]},stage:2}),
