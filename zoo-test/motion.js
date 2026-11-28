@@ -3,6 +3,8 @@ import * as THREE from 'three';
 const TAU=Math.PI*2;
 const smooth=t=>{ t=THREE.MathUtils.clamp(t,0,1); return t*t*(3-2*t); };
 const profiles={
+  pig:{forward:[0,-1],legTop:.36,stride:.51,lift:.071,head:.68,speed:.105},
+  cow:{forward:[0,1],legTop:.48,stride:.49,lift:.072,head:.68,speed:.097},
   elephant:{forward:[.81,-.59],legTop:.46,period:12.4,walk:2.25,stride:.34,lift:.060,head:.20},
   giraffe:{forward:[-.64,.77],legTop:.43,period:11.7,walk:2.00,stride:.39,lift:.061,head:.52},
   ostrich:{forward:[.83,.55],legTop:.44,period:8.9,walk:1.65,stride:.36,lift:.084,head:.47},
@@ -149,7 +151,7 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index,ground,loop
     model.quaternion.setFromAxisAngle(pitchAxis,pitch);
   }
   if(loop){
-    const speed=ground?.34:(id==='elephant'?.32:.38)*(index%2?.81:1);
+    const speed=p.speed??(ground?.34:(id==='elephant'?.32:.38)*(index%2?.81:1));
     const segments=loop.map(segment=>({...segment,duration:segment.length/speed*(segment.turn?1.33:1)}));
     const movingTime=segments.reduce((total,segment)=>total+segment.duration,0);
     const distance=segments.reduce((total,segment)=>total+segment.length,0);
