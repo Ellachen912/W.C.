@@ -102,7 +102,7 @@ export function wideWalk(points,radius,side){
   });
 }
 
-export function zooMotion(animal,model,id,anatomy,scale,points,index,ground,loop){
+export function zooMotion(animal,model,id,anatomy,scale,points,index,ground,loop,turnSlot){
   const {profile:p,height}=anatomy;
   const morphs=[];
   model.traverse(mesh=>{if(mesh.morphTargetInfluences) morphs.push(mesh.morphTargetInfluences);});
@@ -149,15 +149,15 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index,ground,loop
     model.quaternion.setFromAxisAngle(pitchAxis,pitch);
   }
   if(loop){
-    const speed=(id==='elephant'?.32:.38)*(index%2?.81:1);
+    const speed=ground?.34:(id==='elephant'?.32:.38)*(index%2?.81:1);
     const segments=loop.map(segment=>({...segment,duration:segment.length/speed*(segment.turn?1.33:1)}));
     const movingTime=segments.reduce((total,segment)=>total+segment.duration,0);
     const distance=segments.reduce((total,segment)=>total+segment.length,0);
     const stepCount=Math.max(4,Math.round(distance/Math.max(.20,stride*.77)));
     const stepLength=distance/stepCount;
-    const period=movingTime+2.35;
+    const period=turnSlot===undefined?movingTime+2.35:44;
     return time=>{
-      const phaseTime=(time+index*1.4)%period;
+      const phaseTime=(time+(turnSlot===undefined?index*1.4:turnSlot*period/2))%period;
       let local=phaseTime, travelled=0, segment=segments[0];
       for(const candidate of segments){
         segment=candidate;
@@ -172,6 +172,7 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index,ground,loop
       animal.position.x=point.x;
       animal.position.z=point.y;
       animal.rotation.y=Math.atan2(end.x-start.x,end.y-start.y)-forward;
+      followSlope();
       const idle=Math.sin(time*1.25+index*1.8);
       const envelope=stopped?0:smooth(phaseTime/.30)*smooth((movingTime-phaseTime)/.30);
       const lateral=segment.turn?.050*Math.sin(Math.PI*u):0;

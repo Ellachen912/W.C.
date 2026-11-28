@@ -1,4 +1,4 @@
-import { prepareZooAnimal, zooMotion, wideWalk } from './motion.js?v=4';
+import { prepareZooAnimal, zooMotion, wideWalk } from './motion.js?v=5';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -95,7 +95,6 @@ function umbrellaTree(g,x,z,height,spread,turn){
   }
 }
 
-const viewingPocket=[[-2.25,1.02],[-1.10,1.0],[-.48,1.52],[-.42,2.19],[-1.12,2.12],[-2.25,1.67]];
 const half=joinWidth/2, edge=radius/2;
 const left=-center, right=center;
 const boundary=[
@@ -103,30 +102,23 @@ const boundary=[
   [left,-radius],[-half,-edge],[half,-edge],[right,-radius],
   [right+apothem,-edge],[right+apothem,edge],[right,radius],[half,edge],
 ];
-const pocket=viewingPocket.map(([x,z])=>[x+left,z]);
-patch(site,boundary,-.28,.28,'#a48c6f',pocket);
-patch(site,boundary,0,.09,'#aec897',pocket);
+patch(site,boundary,-.28,.28,'#a48c6f');
+patch(site,boundary,0,.09,'#aec897');
 const creek=group(site,'象群溪谷',left);
 const forest=group(site,'林坡草地',right);
 const savanna=group(site,'中央長頸鹿草地');
-patch(creek,viewingPocket,-.28,.045,'#d7bd91');
 const river=[[-2.68,.34],[-2.74,-.76],[-1.97,-1.52],[-.93,-1.42],[-.60,-.77],[-.89,.25],[-1.55,.92],[-2.27,.85]];
 patch(creek,river,.092,.02,'#75adab');
 patch(creek,[[-2.35,.31],[-2.42,-.63],[-1.89,-1.20],[-1.18,-1.15],[-.97,-.65],[-1.22,.02],[-1.65,.52]],.114,.014,'#66a3a1');
-patch(creek,[[-.99,-1.22],[-.57,-1.64],[.36,-1.60],[.70,-1.19],[.84,-.34],[.87,.48],[.52,1.02],[-.27,.99],[-.93,.79],[-1.22,.65],[-1.38,.33]],.091,.068,'#d2c095');
+patch(creek,[[-.99,-1.22],[-.57,-1.64],[.36,-1.60],[.72,-1.19],[.93,-.34],[1.01,.93],[.90,1.90],[.30,2.58],[-.57,2.64],[-1.46,2.06],[-1.56,1.37],[-1.32,.65],[-1.38,.33]],.091,.068,'#d2c095');
 patch(creek,[[-1.5,-1.67],[-1.28,-2.75],[-.14,-3.34],[.87,-2.69],[1.67,-1.65],[.95,-.98],[.17,-1.38]],.087,.22,'#9eae81');
-stones(creek,[[-2.54,.25,.92,.42],[-1.72,.3,1.02,.51],[-2.72,.23,-.62,.40],[-1.55,.33,-1.79,.46],[-1.04,.30,-2.68,.43],[1.01,.22,-2.6,.34]]);
-trees(creek,[[-2.71,-1.21,.72],[-1.91,-2.06,.78],[-.70,-3.09,.70],[.54,-3,.64],[1.79,-1.8,.81],[2.45,1.58,.70],[-1.68,2.21,.57],[1.71,2.34,.66]]);
-ribbon(creek,[[.39,.103,2.18],[1.04,.105,1.55],[1.76,.11,.83],[2.61,.11,.70],[apothem,.11,.82]],.56,pathColor);
-ribbon(creek,[[.39,.111,2.18],[-.35,.11,1.93],[-.67,.04,1.70],[-1.05,-.15,1.49],[-1.40,-.215,1.32],[-2.05,-.215,1.34]],.51,'#e6d5ae');
-const glass=L.mat('#93cfcc',{transparent:true,opacity:.40,depthWrite:false});
-L.rbox(.92,.40,.045,glass,-1.64,-.21,1.015,.012,creek);
-for(const x of [-2.09,-1.19]) L.cyl(.028,.034,.46,'#526e62',x,-.22,1.015,6,creek);
+stones(creek,[[-2.72,.23,-.62,.40],[-1.55,.33,-1.79,.46],[-1.04,.30,-2.68,.43],[1.01,.22,-2.6,.34]]);
+trees(creek,[[-2.71,-1.21,.72],[-1.91,-2.06,.78],[-.70,-3.09,.70],[.54,-3,.64],[1.79,-1.8,.81],[2.45,1.58,.70],[2.52,1.92,.66]]);
 patch(forest,[[-2.39,-.82],[-1.73,-1.99],[-.71,-3.01],[.52,-3.41],[1.60,-2.46],[2.67,-1.27],[2.43,.42],[1.08,.9],[-.34,.42]],.087,.25,'#9eb787');
 patch(forest,[[-1.63,-1.62],[-.76,-2.69],[.40,-3.22],[1.36,-2.41],[2.34,-1.28],[1.84,-.56],[.67,-.63],[-.37,-.92]],.332,.25,'#9fba86');
 patch(forest,[[.45,-2.79],[1.08,-2.24],[1.89,-1.40],[1.65,-.90],[.91,-.97],[.59,-1.48]],.58,.18,'#8fa677');
 // The grass ramp bridges the terrace lips at the heights used by the deer.
-const deerRamp=[[-1.45,.763],[-.90,.763],[-.52,.584],[-.04,.337],[.35,.337]];
+const deerRamp=[[-1.76,.763],[-.90,.763],[-.52,.584],[-.04,.337],[.65,.337]];
 function deerGround(z){
   for(let i=1;i<deerRamp.length;i++){
     const [a,low]=deerRamp[i-1], [b,high]=deerRamp[i];
@@ -134,11 +126,11 @@ function deerGround(z){
   }
   return deerRamp.at(-1)[1];
 }
-ribbon(forest,deerRamp.map(([z,y])=>[1.30,y,z]),1.28,'#9bb785');
-for(const x of [.66,1.94]){
+ribbon(forest,deerRamp.map(([z,y])=>[1.26,y,z]),1.72,'#9bb785');
+for(const x of [.40,2.12]){
   const wall=new THREE.Shape(deerRamp.map(([z,y])=>new THREE.Vector2(z,y)));
-  wall.lineTo(.35,.088);
-  wall.lineTo(-1.45,.088);
+  wall.lineTo(.65,.088);
+  wall.lineTo(-1.76,.088);
   wall.closePath();
   const mesh=L.add(new THREE.Mesh(new THREE.ShapeGeometry(wall),
     L.mat('#8fa879',{side:THREE.DoubleSide})),forest);
@@ -152,7 +144,7 @@ umbrellaTree(savanna,.25,-1.50,2.23,.97,-.48);
 umbrellaTree(savanna,2.05,-1.44,1.99,1.02,.82);
 
 const gate=group(site,'疊石入口');
-ribbon(gate,[[0,.105,edge],[0,.105,1.52],[-.20,.109,1.00],[-half,.11,.82]],.67,pathColor);
+ribbon(gate,[[0,.105,edge],[0,.105,1.50],[-.18,.107,1.10]],.67,pathColor);
 for(const side of [-1,1]){
   const x=side*.60;
   L.rbox(.46,.17,.50,'#998e7b',x,.09,1.97,.06,gate);
@@ -196,27 +188,27 @@ for(let i=1;i<outline.length;i++){
 L.cyl(.023,.026,.59,metal,.62,.05,edge,6,perimeter);
 
 const animals=[
-  [creek,'elephant',-.81,.159,.36,1.67,2.0],
+  [creek,'elephant',-1.02,.159,1.60,1.67,2.0],
   [creek,'elephant',1.31,.093,.21,.96,1.16],
   [savanna,'giraffe',1.05,.093,.13,1.89,-.60],
   [savanna,'giraffe',2.91,.093,.97,1.31,.28],
   [forest,'ostrich',.32,.093,2.29,1.02,-.40],
   [forest,'ostrich',1.63,.093,1.67,.98,.80],
-  [forest,'doe',1.60,.763,-1.29,.75,-.48],
-  [forest,'stag',.92,.763,-1.30,.87,1.1],
+  [forest,'doe',1.88,.763,-1.43,.75,-.48],
+  [forest,'stag',.62,.763,-1.43,.87,1.1],
   [forest,'ostrich',-1.52,.093,1.24,1.00,-.72],
 ];
 
 // Routes are proposals in local habitat coordinates. Each starts at the displayed animal.
 const plans=[
-  {animal:0,color:'#2d756a',stops:[[-.90,-.36],[-.70,-1.00]],arc:[.44,-1]},
-  {animal:1,color:'#2d756a',stops:[[1.83,.12],[2.37,-.02]],arc:[.36,1]},
+  {animal:0,color:'#2d756a',stops:[[-.38,.53],[-.75,-.97]],arc:[.48,-1]},
+  {animal:1,color:'#2d756a',stops:[[1.92,.43],[2.65,.17]],arc:[.39,1]},
   {animal:2,color:'#a2662b',stops:[[.73,-.23],[.52,-.68]],arc:[.50,-1]},
   {animal:3,color:'#a2662b',stops:[[2.98,.61],[2.99,.24]],arc:[.39,1]},
   {animal:4,color:'#8d5379',stops:[[.04,2.64],[-.25,2.82]]},
   {animal:5,color:'#8d5379',stops:[[1.96,1.46],[2.45,1.44]]},
-  {animal:6,color:'#75653e',stops:[[1.61,-.64],[1.62,.12]],ground:deerGround},
-  {animal:7,color:'#75653e',stops:[[.94,-.63],[.96,.19]],ground:deerGround},
+  {animal:6,color:'#75653e',stops:[[1.91,-.63],[1.90,.30]],ground:deerGround,arc:[.19,-1],turnSlot:0},
+  {animal:7,color:'#75653e',stops:[[.63,-.63],[.62,.29]],ground:deerGround,arc:[.19,1],turnSlot:1},
   {animal:8,color:'#8d5379',stops:[[-1.78,1.30],[-2.04,.93]]},
 ];
 const routes=group(site,'動物短程路線');
@@ -229,7 +221,7 @@ for(const {animal,color,stops,ground,arc} of plans){
     for(const segment of segments){
       const line=Array.from({length:13},(_,i)=>{
         const p=segment.at(i/12);
-        return [p.x,y+.035,p.y];
+        return [p.x,(ground?.(p.y)??y)+.035,p.y];
       });
       ribbon(route,line,.065,color);
     }
@@ -275,7 +267,7 @@ async function addAnimal([parent,id,x,y,z,length,yaw],index){
   const plan=plans.find(plan=>plan.animal===index);
   const points=plan&&[[x,z],...plan.stops];
   return zooMotion(animal,model,id,anatomy,scale,points,index,plan?.ground,
-    plan?.arc&&wideWalk(points,...plan.arc));
+    plan?.arc&&wideWalk(points,...plan.arc),plan?.turnSlot);
 }
 bakeLot(site);
 
@@ -292,7 +284,7 @@ orbit.maxZoom=4.4;
 orbit.maxPolarAngle=Math.PI*.49;
 const views={
   all:{eye:[4.2,10,17],target:[0,.30,0],zoom:1},
-  creek:{eye:[-center+.6,1.12,5.6],target:[-center-1.16,.42,-.12],zoom:3.0},
+  creek:{eye:[-center+.55,3.45,7.15],target:[-center-.18,.42,.30],zoom:2.55},
   forest:{eye:[center-.8,2.35,5.1],target:[2.35,.71,-.46],zoom:2.35},
 };
 function go(view){
