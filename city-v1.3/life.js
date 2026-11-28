@@ -178,7 +178,7 @@ export function initLife(ctx){
     streetVer=version;
     const centers=[];
     for(const [pid,rec] of Object.entries(curB())){
-      if((rec.t!=='dino'&&rec.t!=='gym')||!rec.occ?.[0]) continue;
+      if((rec.t!=='dino'&&rec.t!=='gym'&&rec.t!=='zoo')||!rec.occ?.[0]) continue;
       const a=hexOf(pid), b=hexOf(rec.occ[0]);
       if(a&&b) centers.push([(a.x+b.x)/2,(a.z+b.z)/2]);
     }
