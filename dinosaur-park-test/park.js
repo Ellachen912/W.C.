@@ -85,11 +85,47 @@ function terrain(lot) {
   L.setRoot(null);
 }
 
+function fossilSign(lot) {
+  const sign=group(lot,'Circular T. rex fossil sign');
+  sign.position.set(0,2.63,1.56);
+  const edge=L.add(new THREE.Mesh(new THREE.CylinderGeometry(.48,.48,.09,32),L.mat('#9a6448')),sign);
+  edge.rotation.x=Math.PI/2;
+  const texture=L.canvasTex((ctx,size)=>{
+    ctx.scale(size/128,size/128);
+    ctx.fillStyle='#563a31';
+    ctx.fillRect(0,0,128,128);
+    ctx.strokeStyle='#d6a26e';
+    ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(64,64,60,0,Math.PI*2);ctx.stroke();
+    function fossil(points){
+      ctx.beginPath();
+      for(const [x,y] of points) ctx.lineTo(x,y);
+      ctx.closePath();ctx.fill();
+    }
+    ctx.fillStyle='#f4d9a6';
+    // Side profile: blunt snout, deep brow, eye socket, and separate lower jaw.
+    fossil([[24,44],[37,34],[59,34],[73,27],[92,29],[100,42],[96,58],[89,68],[80,73],
+      [70,68],[62,65],[53,62],[35,65],[22,59],[20,51]]);
+    fossil([[25,72],[42,77],[64,77],[77,72],[88,65],[92,73],[85,83],[73,89],[43,88],[28,82]]);
+    for(const [x,y,h] of [[26,60,9],[35,64,8],[44,63,9],[53,62,9],[63,65,8],[73,69,6]]){
+      fossil([[x,y],[x+7,y],[x+3,y+h]]);
+    }
+    ctx.fillStyle='#563a31';
+    fossil([[70,43],[78,36],[89,39],[90,48],[83,55],[73,52]]);
+    fossil([[29,46],[42,42],[47,46],[40,52],[28,52]]);
+    fossil([[52,45],[61,40],[66,45],[62,53],[53,54]]);
+  },256);
+  const face=L.add(new THREE.Mesh(new THREE.CircleGeometry(.445,32),
+    new THREE.MeshStandardMaterial({map:texture,roughness:.86})),sign);
+  face.position.z=.046;
+  L.rbox(.23,.33,.29,'#9a6448',0,2.33,1.44,.027,lot);
+}
+
 function pterosaur(lot) {
   const statue=group(lot,'Pteranodon sculpture');
   statue.position.set(1.53,.072,2.24);
   statue.rotation.y=-.34;
-  const bronze='#416e6b', highlight='#699690', membrane='#82aba0';
+  const bronze='#9e4b3e', highlight='#d18054', membrane='#e7a469';
   L.cyl(.44,.52,.13,'#a98e70',0,0,0,12,statue);
   L.cyl(.34,.40,.30,L.wallMat('#c4a581',1,.4),0,.13,0,12,statue);
   L.cyl(.40,.36,.08,'#e1c8a2',0,.43,0,12,statue);
@@ -97,30 +133,43 @@ function pterosaur(lot) {
   rock(statue,0,1.26,-.08,.18,.18,.45,bronze);
   branch(statue,[0,1.27,.08],[0,1.51,.30],.116,bronze);
   rock(statue,0,1.54,.34,.137,.152,.19,highlight);
-  const triangles=[];
-  function face(a,b,c){triangles.push(...a,...b,...c);}
+  function membraneMesh(parent,faces,color){
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute('position',new THREE.Float32BufferAttribute(faces.flat(2),3));
+    geometry.computeVertexNormals();
+    L.add(new THREE.Mesh(geometry,L.mat(color,{side:THREE.DoubleSide})),parent);
+  }
+  const skull=[];
+  const pivots=[];
   const beakTop=[0,1.58,.40],beakBottom=[0,1.46,.48],beakTip=[0,1.48,.92];
   for(const side of [-1,1]){
     const cheek=[side*.11,1.51,.46];
-    face(beakTop,cheek,beakTip);
-    face(cheek,beakBottom,beakTip);
-    rock(statue,side*.116,1.55,.43,.023,.028,.026,'#293e3a');
-    const shoulder=[side*.12,1.34,.14], elbow=[side*.57,1.51,.23];
-    const wrist=[side*.92,1.61,.06], tip=[side*1.22,1.70,-.46];
-    const flank=[side*.13,1.22,-.36], fold=[side*.53,1.31,-.30];
-    face(shoulder,elbow,fold);face(elbow,wrist,fold);
-    face(wrist,tip,fold);face(shoulder,fold,flank);
-    branch(statue,shoulder,elbow,.042,bronze);
-    branch(statue,elbow,wrist,.032,bronze);
-    branch(statue,wrist,tip,.023,bronze);
+    skull.push([beakTop,cheek,beakTip],[cheek,beakBottom,beakTip]);
+    rock(statue,side*.116,1.55,.43,.023,.028,.026,'#54302a');
+
+    const pivot=group(statue,'Wing hinge');
+    pivot.position.set(side*.12,1.34,.14);
+    pivot.userData.moving=true;
+    pivots.push({pivot,side});
+    const root=[0,0,0], elbow=[side*.45,.17,.09];
+    const wrist=[side*.80,.27,-.08], tip=[side*1.10,.36,-.60];
+    const flank=[side*.01,-.12,-.50], fold=[side*.41,-.03,-.44];
+    membraneMesh(pivot,[[root,elbow,fold],[elbow,wrist,fold],[wrist,tip,fold],[root,fold,flank]],membrane);
+    branch(pivot,root,elbow,.042,bronze);
+    branch(pivot,elbow,wrist,.032,bronze);
+    branch(pivot,wrist,tip,.023,bronze);
   }
   const crest=[0,1.94,-.13];
-  face([-.075,1.55,.24],crest,[0,1.70,.40]);
-  face([.075,1.55,.24],[0,1.70,.40],crest);
-  const wings=new THREE.BufferGeometry();
-  wings.setAttribute('position',new THREE.Float32BufferAttribute(triangles,3));
-  wings.computeVertexNormals();
-  L.add(new THREE.Mesh(wings,L.mat(membrane,{side:THREE.DoubleSide})),statue);
+  skull.push([[-.075,1.55,.24],crest,[0,1.70,.40]],
+    [[.075,1.55,.24],[0,1.70,.40],crest]);
+  membraneMesh(statue,skull,highlight);
+
+  let elapsed=0;
+  return delta=>{
+    elapsed=(elapsed+delta)%5.8;
+    const angle=.38*Math.sin(elapsed/5.8*Math.PI*2);
+    for(const {pivot,side} of pivots) pivot.rotation.z=side*angle;
+  };
 }
 
 function museum(lot) {
@@ -161,9 +210,9 @@ function museum(lot) {
     L.tree(side*2.46,-.48,.65,'#78a870');
 
   }
-  pterosaur(lot);
-  L.textPlate('恐龍博物館',1.46,.235,'#ffedc7','#574b3f',0,2.325,1.415);
+  fossilSign(lot);
   L.setRoot(null);
+  return pterosaur(lot);
 }
 
 async function mount(scene,name,x,z,yaw,length) {
@@ -209,7 +258,7 @@ try {
   const museumLot=group(scene,'Dinosaur museum hex');
   museumLot.position.set(museumX,0,museumZ);
   terrain(lot);
-  museum(museumLot);
+  const flapWings=museum(museumLot);
   const connector=group(scene,'Shared pedestrian path');
   trail(connector,[[museumX,museumZ+2.98,.47],[5.53,-.78,.45],[4.44,-1.36,.43],[3.15,museumZ/2,.40],[2.68,-1.03,.33],[2.20,-.26,.35],[.91,-.23,.35],[.06,-.22,.37]],.069);
   bakeLot(lot);
@@ -241,7 +290,10 @@ try {
   renderer.shadowMap.needsUpdate=true;
   renderer.setAnimationLoop(()=>{
     const dt=Math.min(clock.getDelta(),.06);
-    if(animate) mixers.forEach(m=>m.update(dt));
+    if(animate){
+      mixers.forEach(m=>m.update(dt));
+      flapWings(dt);
+    }
     renderer.render(scene,camera);
   });
   stage.dataset.state='ready';
