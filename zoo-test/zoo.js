@@ -1,3 +1,4 @@
+import { prepareZooAnimal, zooMotion } from './motion.js?v=1';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -190,7 +191,7 @@ const plans=[
   {animal:0,color:'#2d756a',stops:[[-.95,-.56],[-.76,-.98]]},
   {animal:1,color:'#2d756a',stops:[[1.58,-.33],[1.99,-.30]]},
   {animal:2,color:'#a2662b',stops:[[.63,-.28],[.49,-.79]]},
-  {animal:3,color:'#a2662b',stops:[[2.56,.18],[2.64,-.42]]},
+  {animal:3,color:'#a2662b',stops:[[2.56,.26],[2.70,-.18]]},
   {animal:4,color:'#8d5379',stops:[[.04,2.64],[-.25,2.82]]},
   {animal:5,color:'#8d5379',stops:[[1.96,1.46],[2.45,1.44]]},
 ];
@@ -218,18 +219,25 @@ routeButton.onclick=()=>{
 const loader=new GLTFLoader();
 const models=new Map();
 function loadAnimal(id){
-  if(!models.has(id)) models.set(id,loader.loadAsync('./models/'+id+'.glb'));
+  if(!models.has(id)) models.set(id,loader.loadAsync('./models/'+id+'.glb').then(({scene})=>({
+    scene,anatomy:prepareZooAnimal(scene,id),
+  })));
   return models.get(id);
 }
-async function addAnimal([parent,id,x,y,z,length,yaw]){
-  const model=(await loadAnimal(id)).scene.clone();
+async function addAnimal([parent,id,x,y,z,length,yaw],index){
+  const {scene:source,anatomy}=await loadAnimal(id);
+  const model=source.clone();
   const size=new THREE.Box3().setFromObject(model,true).getSize(new THREE.Vector3());
   const animal=group(parent,id,x);
   animal.position.set(x,y,z);
   animal.rotation.y=yaw;
   animal.add(model);
-  model.scale.setScalar(length/Math.max(size.x,size.y,size.z));
-  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+  // Derive the original size from positions, excluding the morph culling margin.
+  const scale=length/Math.max(size.x,size.y,size.z);
+  model.scale.setScalar(scale);
+  model.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=true;}});
+  const plan=plans.find(plan=>plan.animal===index);
+  return zooMotion(animal,model,id,anatomy,scale,plan&&[[x,z],...plan.stops],index);
 }
 bakeLot(site);
 
@@ -269,9 +277,30 @@ new ResizeObserver(resize).observe(canvas);
 go('all');
 resize();
 renderer.shadowMap.needsUpdate=true;
-renderer.setAnimationLoop(()=>renderer.render(scene,camera));
+const motionToggle=document.querySelector('#motion');
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+let playing=!reducedMotion.matches;
+let ticks=[];
+let time=0;
+function syncMotion(){
+  motionToggle.textContent=playing?'暫停動作':'播放動作';
+  motionToggle.setAttribute('aria-pressed',String(!playing));
+}
+syncMotion();
+motionToggle.onclick=()=>{ playing=!playing; syncMotion(); };
+reducedMotion.addEventListener('change',event=>{ playing=!event.matches; syncMotion(); });
+const clock=new THREE.Clock();
+renderer.setAnimationLoop(()=>{
+  const dt=Math.min(.065,clock.getDelta());
+  if(playing){
+    time+=dt;
+    for(const tick of ticks) tick(time);
+  }
+  renderer.render(scene,camera);
+});
 try{
-  await Promise.all(animals.map(addAnimal));
+  ticks=await Promise.all(animals.map(addAnimal));
+  motionToggle.disabled=false;
   renderer.shadowMap.needsUpdate=true;
   status.textContent='拖曳旋轉 · 雙指縮放';
   document.body.dataset.ready='true';
