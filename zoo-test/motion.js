@@ -70,7 +70,39 @@ export function prepareZooAnimal(model,id){
   return {height,profile:p};
 }
 
-export function zooMotion(animal,model,id,anatomy,scale,points,index,ground){
+// A closed route with parallel return lanes and tangent semicircles at both ends.
+export function wideWalk(points,radius,side){
+  const outbound=new THREE.QuadraticBezierCurve(...points.map(p=>new THREE.Vector2(...p)));
+  const edge=u=>{
+    const p=outbound.getPointAt(u), t=outbound.getTangentAt(u);
+    return {p,t,n:new THREE.Vector2(t.y,-t.x).multiplyScalar(side)};
+  };
+  const back=u=>{
+    const {p,n}=edge(1-u);
+    return p.addScaledVector(n,2*radius);
+  };
+  const arc=(u,far)=>{
+    const {p,t,n}=edge(far?1:0);
+    if(!far){ p.addScaledVector(n,2*radius); t.negate(); n.negate(); }
+    return p.addScaledVector(t,radius*Math.sin(Math.PI*u))
+      .addScaledVector(n,radius*(1-Math.cos(Math.PI*u)));
+  };
+  const pieces=[u=>outbound.getPointAt(u),u=>arc(u,true),back,u=>arc(u,false)];
+  return pieces.map((at,i)=>{
+    let length=i%2?Math.PI*radius:0;
+    if(i%2===0){
+      let last=at(0);
+      for(let j=1;j<=16;j++){
+        const point=at(j/16);
+        length+=point.distanceTo(last);
+        last=point;
+      }
+    }
+    return {at,length,turn:i%2===1};
+  });
+}
+
+export function zooMotion(animal,model,id,anatomy,scale,points,index,ground,loop){
   const {profile:p,height}=anatomy;
   const morphs=[];
   model.traverse(mesh=>{if(mesh.morphTargetInfluences) morphs.push(mesh.morphTargetInfluences);});
@@ -89,7 +121,7 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index,ground){
   const ease=t=>t<.16?t*t/.32:t>.84?1-(1-t)*(1-t)/.32:t-.08;
   const unitEase=t=>t<.16?ease(t)/.84:t>.84?1-(1-t)*(1-t)/(.32*.84):ease(t)/.84;
   const angle=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
-  function setGait(phase,envelope,stepLength,idle,turning=0){
+  function setGait(phase,envelope,stepLength,idle,turning=0,liftScale=1){
     for(const weights of morphs){
       const legs=(weights.length-1)/channels;
       for(let i=0;i<legs;i++){
@@ -100,7 +132,7 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index,ground){
         const lift=swing?Math.sin(v*Math.PI):0;
         const k=i*channels;
         weights[k]=travel*stepLength/scale*envelope;
-        weights[k+1]=lift*p.lift*height*envelope;
+        weights[k+1]=lift*p.lift*height*envelope*liftScale;
         if(channels===3) weights[k+2]=travel*turning*height*(i<2?1:-1)*envelope;
       }
       weights[weights.length-1]=idle;
@@ -115,6 +147,37 @@ export function zooMotion(animal,model,id,anatomy,scale,points,index,ground){
     const grade=(ground(z+.15)-ground(z-.15))/.30;
     const pitch=-Math.atan(grade*look)*.65;
     model.quaternion.setFromAxisAngle(pitchAxis,pitch);
+  }
+  if(loop){
+    const speed=(id==='elephant'?.32:.38)*(index%2?.81:1);
+    const segments=loop.map(segment=>({...segment,duration:segment.length/speed*(segment.turn?1.33:1)}));
+    const movingTime=segments.reduce((total,segment)=>total+segment.duration,0);
+    const distance=segments.reduce((total,segment)=>total+segment.length,0);
+    const stepCount=Math.max(4,Math.round(distance/Math.max(.20,stride*.77)));
+    const stepLength=distance/stepCount;
+    const period=movingTime+2.35;
+    return time=>{
+      const phaseTime=(time+index*1.4)%period;
+      let local=phaseTime, travelled=0, segment=segments[0];
+      for(const candidate of segments){
+        segment=candidate;
+        if(local<candidate.duration) break;
+        local-=candidate.duration;
+        travelled+=candidate.length;
+      }
+      const stopped=phaseTime>=movingTime;
+      const u=stopped?1:local/segment.duration;
+      const point=segment.at(u);
+      const start=segment.at(Math.max(0,u-.004)), end=segment.at(Math.min(1,u+.004));
+      animal.position.x=point.x;
+      animal.position.z=point.y;
+      animal.rotation.y=Math.atan2(end.x-start.x,end.y-start.y)-forward;
+      const idle=Math.sin(time*1.25+index*1.8);
+      const envelope=stopped?0:smooth(phaseTime/.30)*smooth((movingTime-phaseTime)/.30);
+      const lateral=segment.turn?.050*Math.sin(Math.PI*u):0;
+      const lift=segment.turn?1+.95*Math.sin(Math.PI*u):1;
+      setGait((travelled+u*segment.length)/stepLength,envelope,stepLength,idle*(stopped?1:.38),lateral,lift);
+    };
   }
   return time=>{
     const idle=Math.sin(time*(id==='ostrich'?2.4:1.25)+index*1.8);

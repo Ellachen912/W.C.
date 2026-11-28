@@ -1,4 +1,4 @@
-import { prepareZooAnimal, zooMotion } from './motion.js?v=3';
+import { prepareZooAnimal, zooMotion, wideWalk } from './motion.js?v=4';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -113,7 +113,7 @@ patch(creek,viewingPocket,-.28,.045,'#d7bd91');
 const river=[[-2.68,.34],[-2.74,-.76],[-1.97,-1.52],[-.93,-1.42],[-.60,-.77],[-.89,.25],[-1.55,.92],[-2.27,.85]];
 patch(creek,river,.092,.02,'#75adab');
 patch(creek,[[-2.35,.31],[-2.42,-.63],[-1.89,-1.20],[-1.18,-1.15],[-.97,-.65],[-1.22,.02],[-1.65,.52]],.114,.014,'#66a3a1');
-patch(creek,[[-.91,-1.18],[-.18,-1.62],[.45,-1.26],[.57,-.32],[.84,.35],[-.03,.66],[-1.02,.58],[-1.38,.33]],.091,.068,'#d2c095');
+patch(creek,[[-.91,-1.18],[-.18,-1.62],[.45,-1.26],[.57,-.32],[.84,.35],[-.03,.83],[-.93,.66],[-1.02,.58],[-1.38,.33]],.091,.068,'#d2c095');
 patch(creek,[[-1.5,-1.67],[-1.28,-2.75],[-.14,-3.34],[.87,-2.69],[1.67,-1.65],[.95,-.98],[.17,-1.38]],.087,.22,'#9eae81');
 stones(creek,[[-2.54,.25,.92,.42],[-1.72,.3,1.02,.51],[-2.72,.23,-.62,.40],[-.87,.35,-1.56,.62],[-1.04,.30,-2.68,.43],[1.01,.22,-2.6,.34]]);
 trees(creek,[[-2.71,-1.21,.72],[-1.91,-2.06,.78],[-.70,-3.09,.70],[.54,-3,.64],[1.79,-1.8,.81],[2.45,1.58,.70],[-1.68,2.21,.57],[1.71,2.34,.66]]);
@@ -199,7 +199,7 @@ const animals=[
   [creek,'elephant',-.85,.159,-.22,1.67,2.0],
   [creek,'elephant',1.18,.093,-.16,.96,1.16],
   [savanna,'giraffe',1.05,.093,.13,1.89,-.60],
-  [savanna,'giraffe',2.44,.093,.66,1.31,.28],
+  [savanna,'giraffe',2.91,.093,.97,1.31,.28],
   [forest,'ostrich',.32,.093,2.29,1.02,-.40],
   [forest,'ostrich',1.63,.093,1.67,.98,.80],
   [forest,'doe',1.60,.763,-1.29,.75,-.48],
@@ -209,10 +209,10 @@ const animals=[
 
 // Routes are proposals in local habitat coordinates. Each starts at the displayed animal.
 const plans=[
-  {animal:0,color:'#2d756a',stops:[[-.95,-.56],[-.76,-.98]]},
-  {animal:1,color:'#2d756a',stops:[[1.58,-.33],[1.99,-.30]]},
-  {animal:2,color:'#a2662b',stops:[[.63,-.28],[.49,-.79]]},
-  {animal:3,color:'#a2662b',stops:[[2.56,.26],[2.70,-.18]]},
+  {animal:0,color:'#2d756a',stops:[[-.90,-.52],[-.76,-.82]],arc:[.39,-1]},
+  {animal:1,color:'#2d756a',stops:[[1.49,-.25],[1.85,-.20]],arc:[.33,1]},
+  {animal:2,color:'#a2662b',stops:[[.73,-.23],[.52,-.68]],arc:[.50,-1]},
+  {animal:3,color:'#a2662b',stops:[[2.98,.61],[2.99,.24]],arc:[.39,1]},
   {animal:4,color:'#8d5379',stops:[[.04,2.64],[-.25,2.82]]},
   {animal:5,color:'#8d5379',stops:[[1.96,1.46],[2.45,1.44]]},
   {animal:6,color:'#75653e',stops:[[1.61,-.64],[1.62,.12]],ground:deerGround},
@@ -220,10 +220,21 @@ const plans=[
   {animal:8,color:'#8d5379',stops:[[-1.78,1.30],[-2.04,.93]]},
 ];
 const routes=group(site,'動物短程路線');
-for(const {animal,color,stops,ground} of plans){
+for(const {animal,color,stops,ground,arc} of plans){
   const [habitat,,x,y,z]=animals[animal];
   const route=group(routes,'預定走路方向',habitat.position.x);
   const points=[[x,z],...stops];
+  if(arc){
+    const segments=wideWalk(points,...arc);
+    for(const segment of segments){
+      const line=Array.from({length:13},(_,i)=>{
+        const p=segment.at(i/12);
+        return [p.x,y+.035,p.y];
+      });
+      ribbon(route,line,.065,color);
+    }
+    continue;
+  }
   ribbon(route,points.map(([px,pz])=>[px,(ground?.(pz)??y)+.035,pz]),.065,color);
   const [ax,az]=points.at(-2),[bx,bz]=points.at(-1);
   const len=Math.hypot(bx-ax,bz-az);
@@ -262,7 +273,9 @@ async function addAnimal([parent,id,x,y,z,length,yaw],index){
   model.scale.setScalar(scale);
   model.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=true;}});
   const plan=plans.find(plan=>plan.animal===index);
-  return zooMotion(animal,model,id,anatomy,scale,plan&&[[x,z],...plan.stops],index,plan?.ground);
+  const points=plan&&[[x,z],...plan.stops];
+  return zooMotion(animal,model,id,anatomy,scale,points,index,plan?.ground,
+    plan?.arc&&wideWalk(points,...plan.arc));
 }
 bakeLot(site);
 
