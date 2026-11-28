@@ -10,7 +10,7 @@ import { ZY } from './zy.js';
 const MENU=[['市政中心',['hall','mayor']],['教育',['school','library']],['住宅',['home']],['基礎建設',['power','water','sewage','trash']],
   ['農業畜牧',['garden','ranch','orchard','tea','agri']],['美食',['breakfast','bakery','icecream','burger','japanese','donut','boba','cafe','nightmarket']],
   ['商業與生活',['market','street','bank']],['醫療與安全',['hospital','firedept','police']],['其他區',['clinic','conv','park','firestation','policebox','temple','stationery','bookstore']],
-  ['文化',['art','music','aquarium','gym']],['自然科學',['botanic','playground','zoo','observatory']],['交通',['pier','train','airport']]];
+  ['文化',['art','music','aquarium','gym']],['自然科學',['dino','zoo','observatory']],['交通',['pier','train','airport']]];
 /* 家長 11-20 23:33～23:36：商業區不蓋百貨公司、觀光飯店；商店街改叫老街；書店搬到其他區；運動併進文化；「自然、科學與遊樂」改叫「自然科學」 */
 
 export function initUI({ L, camera, BUILDINGS, TOPH, renderCity, flyTo, snap, bounce, plotPos, setHi, curB, TM }){

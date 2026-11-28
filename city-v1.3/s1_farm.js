@@ -2,7 +2,8 @@
    菜園 Lv1 紅色小穀倉工具屋、三排菜（高麗菜、紅蘿蔔、番茄和紅椒）、稻草人、水井、蔬菜推車、木柵欄、很多樹
    → Lv2 再兩排菜（南瓜和茄子、青椒和紅椒）、稻田和白鷺鷥、金黃小麥田和荷蘭風車（把小麥磨成麵粉，葉片會轉）。（18:56 拿掉竹棚瓜架）
    牧場（18:38 定稿）Lv1 紅色穀倉、網子雞舍（架高小屋＋斜坡＋產蛋箱＋鐵絲網運動場）、雞蛋攤、圓形豬圈、抽水風車（會轉）
-   → Lv2 穀倉換成大牛舍、圓筒穀倉、圓形牛欄（乳牛、乾草架、水槽）、圓捆乾草、牛奶桶。 */
+   → Lv2 穀倉換成大牛舍、圓筒穀倉、圓形牛欄（乳牛、乾草架、水槽）、圓捆乾草、牛奶桶。
+   11-28 07:59 家長：菜園加一圈木柵（不要貼著六角格邊緣、入口大一點，不要像關起來）。 */
 import * as THREE from 'three';
 import { animals, ROOT, setRoot, add, rbox, cyl, sphere, mat, tree, bush, prism, canvasTex, textPlate, anims, butterfly } from './lib.js';
 import { GARDEN, FARM, scarecrow, chicken, beam, rotors, awning } from './stage1.js';
@@ -16,6 +17,31 @@ function bed(x,z,w,items,s=.26,soil=GARDEN.soil){        // 一畦菜：一排�
 function picket(x0,x1,z){ const n=Math.max(1,Math.round((x1-x0)/1.4)); for(let i=0;i<n;i++) kit(FARMB('Fence2'),x0+(i+.5)*(x1-x0)/n,z,{w:(x1-x0)/n}); }
 function railFence(x0,z0,x1,z1){ const len=Math.hypot(x1-x0,z1-z0), n=Math.max(1,Math.round(len/1.4)), rot=-Math.atan2(z1-z0,x1-x0);
   for(let i=0;i<n;i++){ const t=(i+.5)/n; kit(FARMB('Fence'),x0+(x1-x0)*t,z0+(z1-z0)*t,{h:.32,rot}); } }
+/* ---------- 菜園木柵（家長 11-28 07:59） ----------
+   沿著六角格繞一圈，但往內縮：草地邊緣離中心約 3.38，柵欄放在 3.1（11-28 08:11 家長：再靠邊一點點），中間留一條草地喘口氣。
+   柵欄矮矮的（0.36）、木樁之間有空隙；正面（朝 +z 的路）留 1.7 寬的大入口，兩邊門柱稍高、旁邊種花，入口接木板步道。
+   工具屋、Lv2 風車擋到的地方不畫柵欄（柵欄接到建築的牆）。 */
+const FENCE_AP=3.1, GATE=.85, FENCE_C='#9a6a44', FENCE_STEP=.32;
+const hexD=(x,z)=>Math.max(Math.abs(z),.866*Math.abs(x)+.5*Math.abs(z));          // 到中心的「六角距離」（等於離哪一條邊多近）
+function clearOf(x,z){ const d=hexD(x,z); if(d>FENCE_AP) return d<FENCE_AP+.3?[x*(FENCE_AP+.3)/d,z*(FENCE_AP+.3)/d]:[x,z];   // 柵欄外面的樹：至少離柵欄 0.3
+  return d>FENCE_AP-.38?[x*(FENCE_AP-.38)/d,z*(FENCE_AP-.38)/d]:[x,z]; }                                                      // 柵欄裡面的樹：往內收，不要壓到柵欄
+function gardenFence(lv){
+  const r=FENCE_AP/.866, V=[...Array(6)].map((_,i)=>[r*Math.cos(i*Math.PI/3),r*Math.sin(i*Math.PI/3)]);   // 六個角（z 往前是正）
+  const skip=[{x0:-2.45,x1:-.85,z0:-2.3,z1:-.9}];                                                       // 工具屋
+  const skipC=lv>=2?[[2.45,-.35,.6]]:[];                                                                   // 風車底座
+  const blocked=(x,z)=>skip.some(s=>x>s.x0&&x<s.x1&&z>s.z0&&z<s.z1)||skipC.some(([cx,cz,cr])=>Math.hypot(x-cx,z-cz)<cr)||(z>FENCE_AP-.05&&Math.abs(x)<GATE);
+  for(let e=0;e<6;e++){ const [ax,az]=V[e], [bx,bz]=V[(e+1)%6], n=Math.round(r/FENCE_STEP); let prev=null;
+    for(let i=0;i<=n;i++){ const t=i/n, x=ax+(bx-ax)*t, z=az+(bz-az)*t;
+      if(blocked(x,z)){ prev=null; continue; }
+      if(i<n||e===5) cyl(.028,.034,.36,FENCE_C,x,0,z,6);                                                  // 木樁（角上的只畫一次）
+      if(prev) for(const y of [.14,.28]) beam([prev[0],y,prev[1]],[x,y,z],.016,FENCE_C,5);                 // 兩條橫木
+      prev=[x,z]; } }
+  for(const s of [-1,1]){ const gx=s*GATE;                                                                // 入口兩根門柱＋小圓頂＋花
+    cyl(.05,.055,.5,FENCE_C,gx,0,FENCE_AP,8); sphere(.065,FENCE_C,gx,.54,FENCE_AP);
+    bush(gx+s*.38,FENCE_AP+.22,.4,s<0?'#ff8fa3':'#ffd166'); }                                         // 花種在柵欄外、入口兩邊
+  for(let z=FENCE_AP+.12;z>(lv>=2?1.55:1.15);z-=.22){                                                 // 木板步道：從入口走到菜畦前（Lv2 走在兩片麥田中間）
+    rbox(.44,.035,.16,'#c9a27a',(z*7%2-1)*.02,.09,z,.01); }
+}
 // ---------- 菜園 ----------
 function paddy(x,z,w,d){                    // 稻田：水汪汪的田＋一排排綠色秧苗＋田埂
   rbox(w+.12,.1,d+.12,'#a88a5a',x,0,z,.03);
@@ -47,22 +73,25 @@ export function garden(lv){
   kit(FARMB('SmallBarn'),-1.65,-1.6,{w:1.45});                                   // 紅色小穀倉＝工具屋
   bed(.75,-.75,2.6,['Lettuce_Whole']); bed(.75,-.1,2.6,['Carrot']); bed(.75,.55,2.6,['Tomato'],.3);
   scarecrow(-1.55,.35,1.0);
-  kit(FARMB('Well'),2.45,-1.65,{w:.55});
-  kit(FT('cart'),-2.35,1.2,{w:.85,rot:.5});                                       // 蔬菜推車：堆滿一車（家長 20:12）
+  kit(FARMB('Well'),1.95,-1.3,{w:.55});                                            // 11-28：往內挪，讓出柵欄
+  const CX=-2.05, CZ=1.05;                                                         // 蔬菜推車（11-28 往內挪）
+  kit(FT('cart'),CX,CZ,{w:.85,rot:.5});                                       // 蔬菜推車：堆滿一車（家長 20:12）
   { const cr=Math.cos(.5), sr=Math.sin(.5); [[-.2,-.1,'Pumpkin',.2],[0,-.1,'Lettuce_Whole',.2],[.2,-.1,'Pumpkin',.2],[-.2,.1,'Lettuce_Whole',.2],[0,.1,'Tomato',.15],[.2,.1,'Lettuce_Whole',.2],
-      [-.1,0,'Carrot',.2,.1],[.1,0,'Tomato',.15,.1],[0,.02,'Eggplant',.17,.18]].forEach(([dx,dz,n,w,dy=0])=>kit(FOOD(n),-2.35+dx*.8*cr+dz*.8*sr,1.2-dx*.8*sr+dz*.8*cr,{w:w*.8,y0:.3+dy*.7,rot:dx*7})); }   // 一之一：菜放低、貼在推車板子上
-  cyl(.12,.1,.22,'#4a8fd8',1.9,0,1.25,14); beam([1.9,.22,1.25],[2.05,.3,1.35],.02,'#4a8fd8',6);   // 澆水桶
+      [-.1,0,'Carrot',.2,.1],[.1,0,'Tomato',.15,.1],[0,.02,'Eggplant',.17,.18]].forEach(([dx,dz,n,w,dy=0])=>kit(FOOD(n),CX+dx*.8*cr+dz*.8*sr,CZ-dx*.8*sr+dz*.8*cr,{w:w*.8,y0:.3+dy*.7,rot:dx*7})); }   // 一之一：菜放低、貼在推車板子上
+  cyl(.12,.1,.22,'#4a8fd8',2.3,0,1.0,14); beam([2.3,.22,1.0],[2.45,.3,1.1],.02,'#4a8fd8',6);   // 澆水桶（11-28 挪到菜畦旁邊，Lv2 不會壓到南瓜茄子那一排）
   bush(-.4,-1.75,.6,'#ffd166');
-  // 家長 18:45：照牧場的風格，樹多一點、木頭柵欄
-  [[-.3,-2.85,.7,'#6fc463'],[.9,-2.6,.65],[2.0,-2.4,.6,'#6fc463'],[-2.7,-.4,.65],[2.75,.4,.6,'#6fc463'],[-2.55,-1.45,.55]].forEach(([x,z,sc,c])=>tree(x,z,sc,c));
-  if(lv<2){ tree(-2.35,2.1,.55,'#6fc463');   // 家長 20:12：前面的木柵欄不要
-    tree(2.35,2.0,.55); bush(-1.4,1.7,.55,'#ff8fa3'); bush(1.4,1.6,.55,'#c99be8'); }
+  // 家長 18:45：照牧場的風格，樹多一點、木頭柵欄（11-28：樹不壓到柵欄，靠近的往內或往外挪一點）
+  const T=(x,z,s,c)=>{ const [a,b]=clearOf(x,z); tree(a,b,s,c); };
+  [[-.3,-2.85,.7,'#6fc463'],[.9,-2.6,.65],[2.0,-2.4,.6,'#6fc463'],[-2.7,-.4,.65],[2.75,.4,.6,'#6fc463'],[-2.55,-1.45,.55]].forEach(([x,z,sc,c])=>T(x,z,sc,c));
+  if(lv<2){ T(-2.35,2.1,.55,'#6fc463');   // 家長 20:12：前面的木柵欄不要（11-28 改成整圈矮木柵＋大入口）
+    T(2.35,2.0,.55); bush(-1.4,1.7,.55,'#ff8fa3'); bush(1.4,1.6,.55,'#c99be8'); }
   if(lv>=2){
     bed(.75,1.2,2.6,['Pumpkin','Eggplant']); bed(-.95,1.2,.9,['Pepper_Green']);
-    wheat(-1.0,2.4,1.75,.85); wheat(1.0,2.4,1.75,.85);   /* 家長 11-13：兩片麥田，不要稻田、白鷺鷥、小水溝 */
+    wheat(-1.0,2.15,1.4,.65); wheat(1.0,2.15,1.4,.65);   /* 家長 11-13：兩片麥田，不要稻田、白鷺鷥、小水溝（11-28：往後收、變窄，中間留步道，不碰柵欄） */
     kit(FARMB('TowerWindmill'),2.45,-.35,{h:3.4,rot:-.5,spin:'Blades',rotors});      // 荷蘭風車：把小麥磨成麵粉
-    tree(-2.7,-.35,.65,'#6fc463'); bush(-2.2,.2,.55,'#ff8fa3');                // 家長 18:56：不要藤架，改種樹和花
+    T(-2.7,-.35,.65,'#6fc463'); bush(-2.2,.2,.55,'#ff8fa3');                // 家長 18:56：不要藤架，改種樹和花
   }
+  gardenFence(lv);
 }
 // ---------- 牧場 ----------
 /* 家長 2026-11-11 18:21：雞會飛，要住在有網子的雞舍；不要羊，只要牛和豬，分開圈；圍欄做成圓的；

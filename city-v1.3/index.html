@@ -251,6 +251,7 @@ import { bakeLot, countMeshes } from './perf.js';
 import { drawAquarium, disposeAquariums } from './s2_aquarium.js';
 // Keep rendering museums placed before they were moved to the separate preview.
 import { drawDinosaurMuseum } from './s2_dino.js';
+import { buildDinosaurPair } from './dinosaur-park.js?v=1';
 import { pendingLen, pendingFrom } from './s1_kit.js';   // 11-25：等模型載好再合併
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';   // 家長 11-25：把不會動的小零件合併，畫得更快
 import { ASTRO_LV, ASTRO_TOP, astroTap } from './s2_astro.js';
@@ -516,7 +517,7 @@ function plotGlow(pid,mat){ const p=PLOTS[pid], c=tilePos(p.tile), g=new THREE.S
 const S1B={ power:POWER_LV, water:WATER_LV, sewage:SEWAGE_LV, trash:TRASH_LV, home:HOME_LV, garden:GARDEN_LV, ranch:RANCH_LV, library:LIBRARY_LV, clinic:CLINIC_LV, hospital:HOSPITAL_LV, breakfast:[BREAKFAST_LV[1]], market:MARKET_LV, conv:CONV_LV, park:PARK_LV, observatory:ASTRO_LV, pier:PIER_LV, train:STATION_LV, firestation:FIRE_LV, policebox:POLICE_LV, temple:TEMPLE_LV, stationery:STATIONERY_LV, art:ART_LV, gym:GYM_LV, bank:BANK_LV, orchard:ORCHARD_LV, tea:TEA_LV, bakery:[BAKERY_LV[1]], nightmarket:[NIGHT_LV[1]], fastfood:FASTFOOD_LV, icecream:ICECREAM_LV, burger:FASTFOOD_LV, japanese:JAPANESE_LV };
 const S1TOP={ power:[0,3.4,3.6,3.6], water:[0,2.8,3.0,3.6], sewage:[0,2.0,2.4,4.6], trash:[0,3.2,4.6], home:[0,2.6,2.8,4.8], garden:[0,2.2,3.8], ranch:[0,3.2,3.6], library:[0,3.1,4.2,5.3], clinic:[0,3.0], hospital:[0,4.1,6.2,8.4], breakfast:[0,4.2], market:[0,2.9,2.9,4.0], conv:[0,2.9], park:[0,2.3,2.3], observatory:ASTRO_TOP, pier:PIER_TOP, train:STATION_TOP, firestation:FIRE_TOP, policebox:POLICE_TOP, temple:TEMPLE_TOP, stationery:STATIONERY_TOP, art:ART_TOP, gym:GYM_TOP, bank:BANK_TOP, orchard:ORCHARD_TOP, tea:TEA_TOP, bakery:[0,BAKERY_TOP[2]], nightmarket:[0,NIGHT_TOP[2]], fastfood:FASTFOOD_TOP, icecream:ICECREAM_TOP, burger:FASTFOOD_TOP, japanese:JAPANESE_TOP };
 const TOPS=[0,3.2,3.6,4.2,5.0,5.5], TOPM=[0,2.4,2.9,3.4,3.9,4.3];
-const TOPH=(t,lv)=>t==='aquarium'?4.6:t==='dino'?2.65:S1B[t]?S1TOP[t][lv]:t==='mayor'?TOPM[lv]:TOPS[lv]*(t==='school'?.85:1);
+const TOPH=(t,lv)=>t==='aquarium'?4.6:t==='dino'?3.45:S1B[t]?S1TOP[t][lv]:t==='mayor'?TOPM[lv]:TOPS[lv]*(t==='school'?.85:1);
 /* 整格建築的六角底盤（家長 11-13 09:46）：市政廳草地、市長的家淺石板、學校米色、菜園牧場泥土色；四座基礎建設不鋪；一之一 7 棟自己畫 */
 const PAD={hall:'#a9d98a',mayor:'#e9e2d3',school:'#e6dccb',garden:'#b9946a',ranch:'#c9a77a'};
 /* 底盤很薄，舊建築原本貼地的東西（跑道、廣場）才不會被蓋住 */
@@ -543,7 +544,7 @@ const LISTS=()=>[L.flags,L.anims,L.animals,L.drops,L.spinners,L.puffs,pulses,rot
 const lots={}; let cityVer=0, shadowDirty=true; const PERF={before:0,after:0};
 const SHARED=()=>new Set(Object.values(L.mats));
 /* 拆掉／重畫一塊地：零件、這棟自己的材質和貼圖都放掉（共用的材質不動）。原本只放掉零件，升級越多次記憶體越多，iPad 會越來越慢 */
-function dropLot(id){ const o=lots[id]; if(!o) return; scene.remove(o.g); disposeAquariums(o.g); const keep=SHARED(), ms=new Set();
+function dropLot(id){ const o=lots[id]; if(!o) return; scene.remove(o.g); o.g.userData.disposeDinosaurPair?.(); disposeAquariums(o.g); const keep=SHARED(), ms=new Set();
   o.g.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material) for(const m of [].concat(x.material)) if(!keep.has(m)&&m!==L.glassMat&&m!==L.cityFlagMat) ms.add(m); });
   for(const m of ms){ for(const k of ['map','emissiveMap','normalMap','roughnessMap','alphaMap']) if(m[k]&&m[k].isCanvasTexture&&!m[k].userData.keep) m[k].dispose(); m.dispose(); }
   for(const [arr,items] of o.own){ if(!items.length) continue; const s=new Set(items); for(let i=arr.length-1;i>=0;i--) if(s.has(arr[i])) arr.splice(i,1); }
@@ -586,6 +587,26 @@ function renderCity(){
         const [a,k]=HALF_FIT[rec.t], inner=new THREE.Group(); inner.position.z=a; inner.scale.z=k; g.add(inner); g.userData.fit=[a,k];   /* 11-27 A-0：人物路線用畫圖座標，換算時要知道往前收了多少 */ L.setRoot(inner); drawType(rec.t,rec.lv);
         for(const m of [...inner.children]) if(m.isMesh&&m.geometry&&m.geometry.type==='ExtrudeGeometry'){ inner.remove(m); g.add(m); }   // 底盤（半格石板）維持原大小、原位置
         L.setRoot(g); }
+      else if(rec.t==='dino'&&rec.occ?.[0]){
+        const partner=tilePos(rec.occ[0]);
+        const anchor=new THREE.Group();
+        anchor.rotation.y=-g.rotation.y;
+        g.add(anchor);
+        anchor.position.set(pos.x-partner.x,0,pos.z-partner.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP,-g.rotation.y);
+        const abort=new AbortController();
+        const pair=buildDinosaurPair(anchor,2*(partner.x-pos.x),2*(partner.z-pos.z),{signal:abort.signal});
+        g.userData.dinosaurPark='loading';
+        g.userData.disposeDinosaurPair=()=>{ abort.abort(); pair.stop(); };
+        const motion=matchMedia('(prefers-reduced-motion: reduce)');
+        L.anims.push((_,dt)=>{ if(!motion.matches) pair.update(dt); });
+        pair.ready.then(()=>{
+          if(!abort.signal.aborted) g.userData.dinosaurPark='ready';
+        }).catch(error=>{
+          if(abort.signal.aborted) return;
+          g.userData.dinosaurPark='error';
+          console.error('Dinosaur exhibit failed to load',error);
+        });
+      }
       else drawType(rec.t,rec.lv);
       if(PLOTS[pid]&&PLOTS[pid].half&&!(TYPES[rec.t]&&TYPES[rec.t].size==='full')&&!(rec.t==='temple'&&rec.lv>=2)) backHedge();   // 半格背面和另一半之間：一排矮樹籬＋兩盆小盆栽（家長 11-19 15:05）
       return g; },pos.x,pos.z);
@@ -695,7 +716,7 @@ canvas.addEventListener('pointerup',e=>{
 let fly=null;
 function flyTo(pos,t){ stopFollow();
   const tg=pos?new THREE.Vector3(pos.x,t==='aquarium'?2.0:1.2,pos.z+(t==='school'?-.6:0)):HOME.target.clone();
-  const p=pos?tg.clone().add(t==='aquarium'?new THREE.Vector3(4,4.5,9.2):t==='dino'?new THREE.Vector3(3.6,5.1,9.8):t==='school'?new THREE.Vector3(7,15,14):new THREE.Vector3(9,12,17)):HOME.pos.clone();
+  const p=pos?tg.clone().add(t==='aquarium'?new THREE.Vector3(4,4.5,9.2):t==='dino'?new THREE.Vector3(5.1,8.8,canvas.clientWidth<canvas.clientHeight?23:17):t==='school'?new THREE.Vector3(7,15,14):new THREE.Vector3(9,12,17)):HOME.pos.clone();
   fly={t0:controls.target.clone(),p0:camera.position.clone(),t1:tg,p1:p,k:0};
 }
 /* ---------- 點到人物：鏡頭拉近、跟著他走（家長 11-19 17:18）；點別的地方、按「看全城」或箭頭就停 ---------- */
