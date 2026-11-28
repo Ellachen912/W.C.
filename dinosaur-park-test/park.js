@@ -216,7 +216,7 @@ function museum(lot) {
 }
 
 async function mount(scene,name,x,z,yaw,length) {
-  const {scene:model,animations}=await loader.loadAsync(new URL('./models/'+name+'.glb?v=7',import.meta.url).href);
+  const {scene:model,animations}=await loader.loadAsync(new URL('./models/'+name+'.glb?v='+(name==='trex'?8:7),import.meta.url).href);
   const actor=group(scene,name);
   model.updateMatrixWorld(true);
   const bounds=new THREE.Box3().setFromObject(model,true);
