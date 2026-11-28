@@ -196,7 +196,7 @@ const animals=[
   [forest,'ostrich',1.63,.093,1.67,.98,.80],
   [forest,'doe',1.88,.763,-1.43,.75,-.48],
   [forest,'stag',.62,.763,-1.43,.87,1.1],
-  [forest,'ostrich',-1.52,.093,1.24,1.00,-.72],
+  [forest,'ostrich',-1.65,.093,2.26,1.00,-.72],
 ];
 
 // Routes are proposals in local habitat coordinates. Each starts at the displayed animal.
@@ -209,7 +209,7 @@ const plans=[
   {animal:5,color:'#8d5379',stops:[[1.96,1.46],[2.45,1.44]]},
   {animal:6,color:'#75653e',stops:[[1.91,-.63],[1.90,.30]],ground:deerGround,arc:[.19,-1],turnSlot:0},
   {animal:7,color:'#75653e',stops:[[.63,-.63],[.62,.29]],ground:deerGround,arc:[.19,1],turnSlot:1},
-  {animal:8,color:'#8d5379',stops:[[-1.78,1.30],[-2.04,.93]]},
+  {animal:8,color:'#8d5379',stops:[[-1.53,2.49],[-1.37,2.85]]},
 ];
 const routes=group(site,'動物短程路線');
 for(const {animal,color,stops,ground,arc} of plans){
