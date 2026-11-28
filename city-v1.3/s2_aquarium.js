@@ -1,3 +1,4 @@
+import { prepareMarineLife } from './aq_marine.js?v=1';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ROOT, anims, setRoot, textPlate } from './lib.js';
@@ -30,7 +31,7 @@ export function drawAquarium() {
   exhibit.userData.moving = true;
   aquariumPad();   // 我們自己的六角石板地（畫在 ROOT＝這塊地上，會被合併；海生館模型本身另外放、不合併）
   lot.add(exhibit);
-  let mixer, duration = 0, spout = null;
+  let mixer, duration = 0, spout = null, marine;
   let cancelled = false;
   mixers.set(exhibit, () => {
     cancelled = true;
@@ -39,6 +40,7 @@ export function drawAquarium() {
   });
   anims.push(time => {
     if (mixer) mixer.setTime(time % duration);
+    marine?.update(time);
     spout?.update(time);   // 鯨魚偶爾噴水
   });
 
@@ -46,9 +48,17 @@ export function drawAquarium() {
     .then(bytes => {
       if (!cancelled) return loader.parseAsync(bytes, new URL('.', url).href);
     })
-    .then(gltf => {
+    .then(async gltf => {
       if (!gltf) return;
+      const [clip] = gltf.animations;
+      if (!clip || !clip.tracks.length || clip.duration <= 0) throw new Error('Aquarium animation is missing');
+      let replacement;
+      if (!cancelled) {
+        try { replacement = await prepareMarineLife(gltf.scene,clip); }
+        catch (error) { if (!cancelled) console.warn('Using original aquarium animals',error); }
+      }
       if (cancelled) {
+        replacement?.dispose();
         const materials = new Set();
         gltf.scene.traverse(object => {
           object.geometry?.dispose();
@@ -57,8 +67,9 @@ export function drawAquarium() {
         materials.forEach(material => material.dispose());
         return;
       }
-      const [clip] = gltf.animations;
-      if (!clip || !clip.tracks.length || clip.duration <= 0) throw new Error('Aquarium animation is missing');
+      marine = replacement;
+      marine?.mount();
+      exhibit.userData.marineLife = marine ? 'reduced' : 'original';
       gltf.scene.traverse(object => {
         if (!object.isMesh) return;
         object.castShadow = false;
@@ -79,7 +90,7 @@ export function drawAquarium() {
       exhibit.add(gltf.scene);
       mixer = new THREE.AnimationMixer(exhibit);
       duration = clip.duration;
-      mixer.clipAction(clip).play();
+      mixer.clipAction(marine?.clip ?? clip).play();
       exhibit.userData.aquarium = 'ready';
     })
     .catch(error => {
