@@ -45,7 +45,7 @@ export const TILE=Object.fromEntries(TILES.map(t=>[t.id,t]));
 /* 專用的格子（家長 11-20 23:01、11-21 07:09）：這一格只能蓋這幾種；這幾種也只能蓋在這一格 */
 export const TILE_ONLY={'HEX-051':['pier'],'HEX-047':['train'],'HEX-042':['firestation','policebox']};
 /* 佔 2 格的建築固定配對（家長 11-20 23:02：天文台就是 009＋010，升級時第二格不會亂跑） */
-export const PAIR={'HEX-009':'HEX-010','HEX-010':'HEX-009'};
+export const PAIR={'HEX-009':'HEX-010','HEX-010':'HEX-009','HEX-011':'HEX-012','HEX-012':'HEX-011','HEX-013':'HEX-014','HEX-014':'HEX-013'};   /* 11-28：自然科學區固定 011＋012、013＋014 兩對（恐龍博物館、動物園各用一對），015 多出來 */
 /* 相鄰的六角格（給佔 2 格的大建築用）：單數欄往南錯開半格 */
 export function neighbors(tid){ const t=TILE[tid], odd=t.c%2===0, /* 0 起算的雙數欄（第 1、3、5… 欄）往南錯開 */ d=[[-1,0],[1,0],[odd?0:-1,-1],[odd?1:0,-1],[odd?0:-1,1],[odd?1:0,1]];
   return d.map(([dr,dc])=>TILES.find(x=>x.r===t.r+dr&&x.c===t.c+dc)).filter(Boolean).map(x=>x.id); }
@@ -75,7 +75,7 @@ export const TYPES={
   garden:T('菜園','farm',{maxLv:2,cost:C(4,2),req:[['water',1]],s1:1}),
   ranch: T('牧場','farm',{maxLv:2,cost:C(4,2),req:[['water',1]],s1:1}),
   // 農業（第二階段）
-  orchard:T('果園','farm',{maxLv:2,cost:C(4,2),req:[['garden',1]],stage:2}), tea:T('茶園','farm',{maxLv:2,cost:C(4,2),req:[['garden',1]],stage:2}), agri:T('農產加工廠','farm',{size:2,req:[['garden',2],['ranch',2]],soon:1}),
+  orchard:T('果園','farm',{maxLv:2,cost:C(4,2),req:[['garden',1]],stage:2}), tea:T('茶園','farm',{maxLv:2,cost:C(4,2),req:[['garden',1]],stage:2}), agri:T('農產加工廠','farm',{req:[['garden',2],['ranch',2]],soon:1}),
   // 美食區：全部只有一級、6 顆（家長 11-19 11:16）
   breakfast:T('早餐店','food',{size:'half',maxLv:1,cost:[0,6],req:[['garden',1],['ranch',1]]}),
   bakery:T('麵包店','food',{size:'half',maxLv:1,cost:[0,6],req:[['garden',2],['ranch',1]],stage:2}),
@@ -90,12 +90,13 @@ export const TYPES={
   street:T('老街','biz',{req:[['home',1],['conv',1]],soon:1}),
   // 文化（家長 11-20 23:36：運動區併進文化區）
   art:T('美術館','culture',{maxLv:1,cost:[0,7],req:[['library',1]],stage:2}),
-  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍博物館','culture',{size:2,maxLv:1,req:[['art',1]]}), aquarium:T('海生館','culture',{maxLv:1,cost:[0,7],req:[['pier',1],['market',1]],stage:2,hallLv:4}),
+  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), aquarium:T('海生館','culture',{maxLv:1,cost:[0,7],req:[['pier',1],['market',1]],stage:2,hallLv:4}),
   gym:T('運動中心','culture',{size:2,maxLv:2,cost:[0,5,4],req:[['school',1]],cap:'hall',stage:2,hallLv:4}),   /* 家長 11-27 12:17：改成 2 格（Lv1 運動公園：專業跳水游泳池＋網球場；Lv2 加木星棒球場） */
-  botanic:T('植物園','nature',{req:[['water',1]],soon:1}), playground:T('兒童遊戲公園','nature',{maxLv:2,req:[['school',1]],soon:1}), zoo:T('動物園','nature',{size:2,req:[['ranch',2]],soon:1}),
-  observatory:T('天文台','astro',{size:2,cost:C(5,3),req:[['library',1]],cap:'hall',stage:2}),
+  /* 自然科學（家長 11-28 01:20：只放恐龍博物館、動物園，各佔 2 格；植物園、兒童遊戲公園拿掉。08:16：恐龍博物館要市政廳 Lv4） */
+  dino:T('恐龍博物館','nature',{size:2,maxLv:1,req:[['art',1]],hallLv:4}), zoo:T('動物園','nature',{size:2,req:[['ranch',2]],soon:1}),
+  observatory:T('天文台','astro',{size:2,cost:C(5,3),req:[['library',1]],cap:'hall',stage:2,hallLv:4}),   /* 家長 11-28 08:16：市政廳 Lv4 才開放 */
   // 醫療與安全（家長 11-20 23:16：醫院改成市政廳 Lv3 就開放）
-  hospital:T('醫院','med',{cost:C(5,3),req:[['hall',3]],cap:'hall'}), firedept:T('消防局','med',{req:[['water',1],['firestation',1]],soon:1}), police:T('警察局','med',{req:[['home',1],['policebox',1]],soon:1}),
+  hospital:T('醫院','med',{cost:C(5,3),req:[['hall',3]],cap:'hall'}), firedept:T('消防總局','med',{req:[['water',1],['firestation',1]],soon:1,hallLv:4}), police:T('警察總部','med',{req:[['home',1],['policebox',1]],soon:1,hallLv:4}),   /* 家長 11-28 08:20：改名消防總局、警察總部，市政廳 Lv4 才開放 */
   // 其他區（半格）
   clinic:T('診所','other',{size:'half',maxLv:1,cost:[0,4],req:[['home',1]]}), conv:T('便利商店','other',{size:'half',maxLv:1,cost:[0,4],req:[['home',1]]}),
   park:T('社區公園','other',{maxLv:2,cost:C(4,2),req:{1:[['home',1]],2:[['home',2]]}})   /* 家長 11-13：公園改一整格（蓋在其他區會佔上下兩個半格） */,
@@ -126,7 +127,7 @@ export const shownName=(B,pid)=>B[pid].name||nameOfT(B[pid].t);
 export const FOOD_SHOPS=Object.keys(TYPES).filter(t=>TYPES[t].zone==='food'&&t!=='nightmarket');
 /* 這一級要先完成的條件清單：Lv1 加上「第二階段要市政廳 Lv3」；升級加上「不超過市政廳」 */
 export function reqList(t,lv){ const ty=TYPES[t], r=ty.req, out=[];
-  if(lv===1&&ty.stage===2) out.push(['hall',ty.hallLv||3]);   // hallLv：家長 11-27 15:27 海生館、運動中心要市政廳 Lv4
+  if(lv===1&&(ty.stage===2||ty.hallLv)) out.push(['hall',ty.hallLv||3]);   // 11-28：有 hallLv 的（恐龍博物館、天文台、運動中心、海生館）都要市政廳 Lv4   // hallLv：家長 11-27 15:27 海生館、運動中心要市政廳 Lv4
   const list=Array.isArray(r)?(lv===1?r:[]):(r[lv]||[]); out.push(...list);
   if(lv>=2&&ty.cap) out.push([ty.cap,lv]);
   const seen=new Set(); return out.filter(x=>{ const k=JSON.stringify(x); if(seen.has(k)) return false; seen.add(k); return true; }); }
@@ -168,7 +169,7 @@ export function canPlace(B,t,pid,test=false){
   if(ty.size==='full'&&p.half){ const other=otherHalf(pid); if(occ[other]) return {why:'這一格的另一半已經有建築了'}; return {occ:[other]}; }
   if(ty.size===2){ if(t==='dino'&&p.half) return {why:'需要兩塊相鄰的完整土地'}; const pr=PAIR[p.tile];
     if(pr){ if(occ[pr]) return {why:'旁邊那一格已經有建築了'}; return {occ:[pr]}; }
-    const nb=neighbors(p.tile).sort((m,n)=>(TILE[m].c===p.c)-(TILE[n].c===p.c)).find(n=>(test||TILE[n].zone===p.zone)&&!occ[n]&&(t!=='dino'||!onlyWhy(t,PLOTS[n]||{tile:n}))&&!SPLIT.has(TILE[n].zone)&&TILE[n].zone!=='none'); if(!nb) return {why:'旁邊要再有一塊同一區的空地'}; return {occ:[nb]}; }
+    const nb=neighbors(p.tile).sort((m,n)=>(TILE[m].c===p.c)-(TILE[n].c===p.c)).find(n=>(test||TILE[n].zone===p.zone)&&!occ[n]&&(t!=='dino'||!onlyWhy(t,PLOTS[n]||{tile:n}))&&!SPLIT.has(TILE[n].zone)&&TILE[n].zone!=='none'&&!PAIR[n]); if(!nb) return {why:'旁邊要再有一塊同一區的空地'}; return {occ:[nb]}; }
   return {occ:[]};
 }
 /* 不能升級的原因（空字串＝可以升）；廟 Lv1→2 要同一格另一半空著 */
