@@ -56,7 +56,7 @@ function mainHall(){ const X=.6, Z=-1.3, W=3.3, D=1.7, H=1.3, Y=.1, fz=Z+D/2;
   rbox(.04,H*.8,.5,glassLit,X+W/2+.005,Y+.25,Z+.2,.003); for(let i=0;i<4;i++) rbox(.02,.02,D+.02,GOLD,X+W/2-.4,Y+.35+i*.3,Z,.002);
   return {X,Z,W,D,fz}; }
 function pool(x,z,w,d){ rbox(w+.16,.08,d+.16,STONE2,x,.1,z,.01); const wm=new THREE.Mesh(new THREE.BoxGeometry(w,.01,d),mat('#3d5f73',{roughness:.05,metalness:.3})); wm.position.set(x,.185,z); wm.receiveShadow=true; add(wm);
-  for(let i=0;i<5;i++) rbox(.12,.014,.12,mat('#fff3d0',{emissive:new THREE.Color('#ffd98a'),emissiveIntensity:.6}),x-w/2+.2+i*(w-.4)/4,.142,z+d/2+.05,.002);   // 池邊地燈：放在石邊上，不要埋在水面裡（11-19 18:58 家長說燈會閃）
+  for(let i=0;i<5;i++) rbox(.09,.012,.05,mat('#fff3d0',{emissive:new THREE.Color('#ffd98a'),emissiveIntensity:.6}),x-w/2+.2+i*(w-.4)/4,.18,z+d/2+.04,.004);   // 家長 11-28 15:30 燈會閃：原本燈埋在石邊裡、只露出前面一條細縫 → 整個放到石邊的上面   // 池邊地燈：放在石邊上，不要埋在水面裡（11-19 18:58 家長說燈會閃）
   // 一排簡單的直立噴泉（家長 11-19 10:51）：細水柱上下起伏，頂端一點水花
   const jm=new THREE.MeshStandardMaterial({color:'#dff3ff',transparent:true,opacity:.75,roughness:.1,emissive:new THREE.Color('#bfe6ff'),emissiveIntensity:.25});
   const jets=[]; for(let i=0;i<5;i++){ const jx=x-w/2+.2+i*(w-.4)/4, jz=z-.05;
