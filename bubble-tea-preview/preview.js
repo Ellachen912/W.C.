@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BUBBLETEA_LV } from '../city-v1.3/s2_bubbletea.js';
 import { setRoot } from '../city-v1.3/lib.js';
+import { backHedge } from '../city-v1.3/half-lot-hedge.js';
 import { bakeLot } from '../city-v1.3/perf.js';
 
 const canvas=document.querySelector('canvas');
@@ -18,7 +19,7 @@ scene.add(key);
 const root=new THREE.Group();
 scene.add(root);
 setRoot(root);
-try{BUBBLETEA_LV[0][2]();}finally{setRoot(null);}
+try{BUBBLETEA_LV[0][2]();backHedge();}finally{setRoot(null);}
 bakeLot(root);
 
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
@@ -33,7 +34,7 @@ const orbit=new OrbitControls(camera,canvas);
 orbit.minZoom=.73;
 orbit.maxZoom=3.4;
 orbit.maxPolarAngle=Math.PI*.49;
-const views={front:[[0,2.6,9],1],angle:[[4.3,5.2,9],1],close:[[2.1,2.7,7],1.35]};
+const views={front:[[0,2.6,9],1],angle:[[4.3,5.2,9],1],close:[[2.1,2.7,7],1.35],rear:[[3.4,3.7,-8],1.12]};
 function show(view){
   const [eye,zoom]=views[view];
   camera.position.set(...eye);

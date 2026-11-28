@@ -238,6 +238,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as L from './lib.js';
 import { BUILDINGS } from './buildings.js';
 import { S, ZONES, GRID, SPLIT, PLOTS, TILE, TYPES, TEST_LAYOUT, EXTRA_TILES, canPlace, occupied, shownName } from './data.js';
+import { backHedge } from './half-lot-hedge.js';
 import { initUI } from './ui.js?v=zoo1';
 import { rotors, POWER_LV } from './s1_power_all.js';
 import { WATER_LV, blinkers } from './s1_water.js';
@@ -569,10 +570,6 @@ function addTag(label,sub,cls,p,onclick,pid){ const b=document.createElement('bu
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* 半格建築：z' = a + k·z，把建物背面收到 z≈-1.25（原本貼到 -1.4～-1.84，跟另一半背靠背）；前面最多到 1.6。數字由各建築量出來的前後範圍算的 */
 const HALF_FIT={ breakfast:[.064,.853], clinic:[.30,1], conv:[.27,.944], firestation:[.095,.934], policebox:[.19,1], temple:[.29,1], stationery:[.15,1], bakery:[.59,1], fastfood:[.19,.87], burger:[.19,.87], icecream:[.30,.953] };
-function backHedge(){ const z=-1.42, len=2.6, HG='#5f9a4f';
-  L.rbox(len,.12,.13,'#8a6a48',0,.09,z,.02); const h=L.rbox(len-.04,.14,.11,L.mat(HG,{roughness:.9}),0,.2,z,.05);
-  for(let i=0;i<9;i++){ const b=L.sphere(.085,L.mat(i%2?'#679f55':'#5a9149',{flatShading:true}),-len/2+.15+i*(len-.3)/8,.34,z); b.scale.set(1.2,.55,.8); }
-  for(const s of [-1,1]){ L.cyl(.09,.07,.16,'#b5704f',s*(len/2+.22),.09,z,12); const p=L.sphere(.12,L.mat('#4f8a44',{flatShading:true}),s*(len/2+.22),.33,z); p.scale.y=.9; } }
 const campusTiles=L.canvasTex((ctx,size)=>{
   ctx.fillStyle='#bdb5a1';ctx.fillRect(0,0,size,size);
   const colors=['#dfd7c7','#e3dbca','#d9d0be','#e8e0cc'];
