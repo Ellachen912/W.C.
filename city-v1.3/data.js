@@ -90,7 +90,7 @@ export const TYPES={
   street:T('老街','biz',{req:[['home',1],['conv',1]],soon:1}),
   // 文化（家長 11-20 23:36：運動區併進文化區）
   art:T('美術館','culture',{maxLv:1,cost:[0,7],req:[['library',1]],stage:2}),
-  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍博物館','culture',{maxLv:1,req:[['art',1]],previewOnly:1}), aquarium:T('海生館','culture',{maxLv:1,cost:[0,7],req:[['pier',1],['market',1]],stage:2,hallLv:4}),
+  music:T('音樂廳','culture',{req:[['art',1]],soon:1}), dino:T('恐龍博物館','culture',{size:2,maxLv:1,req:[['art',1]]}), aquarium:T('海生館','culture',{maxLv:1,cost:[0,7],req:[['pier',1],['market',1]],stage:2,hallLv:4}),
   gym:T('運動中心','culture',{size:2,maxLv:2,cost:[0,5,4],req:[['school',1]],cap:'hall',stage:2,hallLv:4}),   /* 家長 11-27 12:17：改成 2 格（Lv1 運動公園：專業跳水游泳池＋網球場；Lv2 加木星棒球場） */
   botanic:T('植物園','nature',{req:[['water',1]],soon:1}), playground:T('兒童遊戲公園','nature',{maxLv:2,req:[['school',1]],soon:1}), zoo:T('動物園','nature',{size:2,req:[['ranch',2]],soon:1}),
   observatory:T('天文台','astro',{size:2,cost:C(5,3),req:[['library',1]],cap:'hall',stage:2}),
@@ -166,9 +166,9 @@ export function canPlace(B,t,pid,test=false){
   // 占地：半格直接蓋；整格蓋在被切開的格子要兩個半格都空；佔 2 格要旁邊同一區還有一格空地（有固定配對就只能用那一格）
   if(ty.size==='half'&&!p.half&&!test) return {why:'這種店要蓋在半格'};
   if(ty.size==='full'&&p.half){ const other=otherHalf(pid); if(occ[other]) return {why:'這一格的另一半已經有建築了'}; return {occ:[other]}; }
-  if(ty.size===2){ const pr=PAIR[p.tile];
+  if(ty.size===2){ if(t==='dino'&&p.half) return {why:'需要兩塊相鄰的完整土地'}; const pr=PAIR[p.tile];
     if(pr){ if(occ[pr]) return {why:'旁邊那一格已經有建築了'}; return {occ:[pr]}; }
-    const nb=neighbors(p.tile).sort((m,n)=>(TILE[m].c===p.c)-(TILE[n].c===p.c)).find(n=>(test||TILE[n].zone===p.zone)&&!occ[n]&&!SPLIT.has(TILE[n].zone)&&TILE[n].zone!=='none'); if(!nb) return {why:'旁邊要再有一塊同一區的空地'}; return {occ:[nb]}; }
+    const nb=neighbors(p.tile).sort((m,n)=>(TILE[m].c===p.c)-(TILE[n].c===p.c)).find(n=>(test||TILE[n].zone===p.zone)&&!occ[n]&&(t!=='dino'||!onlyWhy(t,PLOTS[n]||{tile:n}))&&!SPLIT.has(TILE[n].zone)&&TILE[n].zone!=='none'); if(!nb) return {why:'旁邊要再有一塊同一區的空地'}; return {occ:[nb]}; }
   return {occ:[]};
 }
 /* 不能升級的原因（空字串＝可以升）；廟 Lv1→2 要同一格另一半空著 */
