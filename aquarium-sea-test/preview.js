@@ -57,7 +57,7 @@ async function start(){
   const names=[...new Set(population.map(fish=>fish.id))];
   const [gltf,...assets]=await Promise.all([
     loader.loadAsync('../city-v1.3/models/aquarium-animated.glb?v=slim1'),
-    ...names.map(id=>loader.loadAsync('./models/'+id+'.glb?v=1')),
+    ...names.map(id=>loader.loadAsync('./models/'+id+'.glb?v=2')),
   ]);
   const aquarium=gltf.scene;
   const removed=new Set();
