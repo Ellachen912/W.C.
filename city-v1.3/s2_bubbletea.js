@@ -6,6 +6,27 @@ const {wall,frame,cream,tea,pearl}=TEA_COLORS;
 const {rbox,cyl,mat,add}=L;
 const glass=mat('#c5e4ed',{transparent:true,opacity:.44,depthWrite:false,roughness:.42});
 
+const wallTiles=L.canvasTex((ctx,size)=>{
+  ctx.fillStyle='#a799b4';
+  ctx.fillRect(0,0,size,size);
+  const shades=[wall,'#c5b6d3','#d9cce4','#cdbedb'];
+  const w=size/4,h=size/6;
+  for(let row=0;row<6;row++) for(let col=-1;col<4;col++){
+    const x=col*w+(row%2)*w/2;
+    const y=row*h;
+    ctx.fillStyle=shades[(row*3+col+4)%4];
+    ctx.fillRect(x+2,y+2,w-4,h-4);
+    ctx.fillStyle='#e0d6e9';
+    ctx.fillRect(x+3,y+3,w-6,2);
+  }
+},256);
+function tileWall(width,height){
+  const map=wallTiles.clone();
+  map.repeat.set(width*1.12,height*1.36);
+  map.needsUpdate=true;
+  return new THREE.MeshStandardMaterial({map,roughness:.9});
+}
+
 function paving(){
   const radius=4.2,h=Math.sqrt(3)*radius,offset=-h*.24,inset=.18;
   const back=offset+inset,front=offset+h/2-inset;
@@ -16,15 +37,20 @@ function paving(){
   const geometry=new THREE.ExtrudeGeometry(shape,{depth:.085,bevelEnabled:true,bevelThickness:.014,bevelSize:.026,bevelSegments:1});
   geometry.rotateX(-Math.PI/2);
   const tex=L.canvasTex((ctx,s)=>{
-    ctx.fillStyle='#c9c0b6'; ctx.fillRect(0,0,s,s);
-    const colors=['#e5ded4','#e9e4db','#ded5cd','#ded3dd'];
-    for(let row=0;row<8;row++) for(let col=-1;col<4;col++){
-      ctx.fillStyle=colors[(row*3+col+4)%4];
-      ctx.fillRect(col*s/4+(row%2)*s/8+2,row*s/8+2,s/4-4,s/8-4);
+    ctx.fillStyle='#b0a4a4'; ctx.fillRect(0,0,s,s);
+    const colors=['#e9ddcb','#d9cbbb','#e8ded4','#d3c4d4','#e4d4cc'];
+    for(let row=0;row<4;row++) for(let col=-1;col<4;col++){
+      const x=col*s/4+(row%2)*s/8,y=row*s/4;
+      ctx.fillStyle=colors[((row%2)*2+(col+4)%4)%colors.length];
+      ctx.fillRect(x+2,y+2,s/4-4,s/4-4);
+      ctx.fillStyle='#f0e5d9';
+      ctx.fillRect(x+4,y+4,s/4-8,2);
+      ctx.fillStyle='#c1b2ae';
+      ctx.fillRect(x+3,y+s/4-5,s/4-6,2);
     }
   },256);
   const p=geometry.attributes.position, uv=geometry.attributes.uv;
-  for(let i=0;i<p.count;i++) uv.setXY(i,p.getX(i)*.95,p.getZ(i)*.95);
+  for(let i=0;i<p.count;i++) uv.setXY(i,p.getX(i)*.79,p.getZ(i)*.79);
   add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({map:tex,roughness:.9})));
 }
 
@@ -64,10 +90,10 @@ function menu(){
 function bubbleTea(){
   paving();
   rbox(2.87,.10,1.53,'#b4a7b8',0,.084,-.45,.05);
-  const stucco=L.wallMat(wall,2.8,1.18);
-  rbox(2.78,1.15,.13,stucco,0,.16,-1.14,.045);
-  for(const side of [-1,1]) rbox(.14,1.15,1.40,stucco,side*1.32,.16,-.45,.048);
-  rbox(2.78,.24,.15,stucco,0,1.07,.225,.025);
+  const backTiles=tileWall(2.78,1.15), sideTiles=tileWall(1.40,1.15);
+  rbox(2.78,1.15,.13,backTiles,0,.16,-1.14,.045);
+  for(const side of [-1,1]) rbox(.14,1.15,1.40,sideTiles,side*1.32,.16,-.45,.048);
+  rbox(2.78,.24,.15,tileWall(2.78,.24),0,1.07,.225,.025);
   rbox(2.86,.065,1.53,cream,0,1.305,-.45,.030);
   rbox(2.96,.064,1.59,frame,0,1.365,-.45,.026);
   rbox(2.79,.018,1.39,'#ebdfe5',0,1.429,-.45,.008);
@@ -76,12 +102,14 @@ function bubbleTea(){
   rbox(.49,.035,.025,frame,-.76,.66,.297,.008);
   rbox(.026,.13,.028,cream,-.56,.49,.311,.008);
   rbox(.58,.044,.19,cream,-.76,.105,.34,.022);
-  rbox(1.31,.45,.46,'#b8a4be',.255,.17,.21,.043);
-  rbox(1.40,.065,.51,cream,.255,.62,.223,.025);
+  rbox(1.39,.053,.23,cream,.255,.621,.33,.024);
+  for(const x of [-.24,.73]) rbox(.095,.12,.14,frame,x,.513,.27,.017);
+  rbox(1.33,.38,.27,'#afa0b9',.245,.17,-.77,.025);
+  rbox(1.39,.043,.30,cream,.245,.54,-.77,.018);
   for(const x of [-.07,.26,.59]){
-    rbox(.17,.22,.17,'#a0afb3',x,.17,-.74,.027);
-    cyl(.074,.065,.18,glass,x,.39,-.74,12);
-    cyl(.078,.078,.025,cream,x,.57,-.74,12);
+    rbox(.15,.04,.15,'#a0afb3',x,.58,-.74,.013);
+    cyl(.064,.060,.14,glass,x,.62,-.74,12);
+    cyl(.069,.069,.022,cream,x,.76,-.74,12);
   }
   L.textPlate('珍珠奶茶',1.56,.21,frame,'#fff4df',-.08,1.205,.319);
   for(let i=0;i<9;i++){
@@ -99,11 +127,6 @@ function bubbleTea(){
     previous.add(leaves);
     L.setRoot(leaves);
     try{L.bush(x,.26,.60,null);}finally{L.setRoot(previous);}
-  }
-  // Outdoor perch for a cup and a short wait.
-  for(const x of [-.20,.39]){
-    cyl(.032,.049,.28,frame,x,.11,1.07,8);
-    cyl(.151,.146,.048,'#b7a3c2',x,.39,1.07,12);
   }
   rooftopCup();
 }
