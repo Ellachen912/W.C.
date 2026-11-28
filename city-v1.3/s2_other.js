@@ -1,5 +1,5 @@
 /* Winston City 第二階段：其他區的小建築（家長 2026-11-18 15:44「先繼續做其他」）
-   派出所（半格、1 級、最多 3 間）：白牆藍腰帶兩層樓，藍底白字「木星派出所」，屋頂紅藍警示燈輪流閃，門口停 Kenney 警車，市旗，巡邏箱
+   派出所（半格、1 級、最多 3 間）：紅磚、白色平屋簷與分格窗，藍底白字「木星派出所」，屋頂紅藍警示燈輪流閃，門口停 Kenney 警車，市旗，巡邏箱
    台灣傳統廟（最多 2 間）：Lv1 半格小廟（紅柱、橘黃屋頂、燕尾翹脊、龍珠、匾額「木星宮」、香爐冒煙、紅燈籠、石獅）；
                            Lv2 長大佔一整格（三川門＋廣場＋大香爐＋兩層屋頂正殿＋兩側廂房、一串紅燈籠、大榕樹）
    文具店（半格、1 級、最多 1 間）：奶油黃透天厝、騎樓下彩色貨架、門口筆記本和蠟筆展示台、兩台扭蛋機、屋頂一支大鉛筆，招牌「木星文具店」
@@ -26,31 +26,86 @@ function halfPad(color,inset=.18,y=0,h=.09){ const R=4.2, Hh=Math.sqrt(3)*R, oz=
 function win(x,y,z,w,h,frame=WHITE,parent){ rbox(w+.08,h+.08,.04,frame,x,y-.04,z,.01,parent); rbox(w,h,.03,glass,x,y,z+.015,.008,parent); rbox(.025,h,.04,frame,x,y,z+.03,.004,parent); }
 
 /* ======================= 派出所 ======================= */
-const PB={wall:'#f4f2ec', blue:'#2b5fa8', blueD:'#1f4680', pad:'#e2e0da'};
-const pbSign=textTex('木星派出所',PB.blue,'#ffffff','#ffffff');
+const PB={brick:'#b87362', trim:'#eee6d6', base:'#b7a994', blue:'#365a70'};
+// 水上分局照片的門楣式紅字燈箱與門側直式藍牌。
+const pbSign=rectTex(512,96,(g,w,h)=>{
+  g.fillStyle='#242024'; g.fillRect(0,0,w,h);
+  g.strokeStyle='#695a55'; g.lineWidth=4; g.strokeRect(4,4,w-8,h-8);
+  g.font='bold 66px "PingFang TC","Noto Sans CJK TC","Noto Sans TC",sans-serif';
+  g.textAlign='center'; g.textBaseline='middle';
+  g.fillStyle='#ff6357';
+  [...'木星派出所'].forEach((ch,i)=>g.fillText(ch,w/2+(i-2)*83,h*.54));
+  g.fillStyle='rgba(36,32,36,.32)';
+  for(let y=10;y<h-6;y+=5) g.fillRect(8,y,w-16,1);
+});
+const pbDoorPlates=['木星市警察局','木星派出所'].map(label=>
+  textTex(label,'#243b69','#f3f3ea','#bac7d5',96,384,true));
+const pbPaving=texMat('police-paving',stoneTex('#e6e0d5','#c4beb3'),1,1);
+// 圖樣來源：內政部警政署「認識警徽」。
+const pbBadge=new THREE.TextureLoader().load(new URL('./models/signs/taiwan-police-emblem.png',import.meta.url).href);
+pbBadge.colorSpace=THREE.SRGBColorSpace;
 function policebox(){
-  halfPad(PB.pad); const Y=.1, W=3.0, D=1.6, cx=.15, cz=-.6, fz=cz+D/2, gf=1.1, ff=.85;
-  rbox(W,gf,D,wallMat(PB.wall,W,gf),cx,Y,cz,.03); rbox(W+.04,.18,D+.04,PB.blue,cx,Y,cz,.02);   /* 11-19 19:03：牆面加二丁掛紋路 */               // 一樓＋藍色牆腳
-  // 正門：藍框玻璃門＋門口雨遮
-  rbox(.86,.82,.05,PB.blue,cx,Y+.18,fz+.005,.01); rbox(.74,.74,.03,glass,cx,Y+.2,fz+.02,.006); rbox(.025,.74,.04,PB.blue,cx,Y+.2,fz+.035,.004);
-  rbox(1.3,.06,.5,PB.blueD,cx,Y+1.0,fz+.24,.02); for(const sx of [-1,1]) cyl(.03,.03,.88,'#c9ced6',cx+sx*.6,Y+.12,fz+.45,8);
-  for(const x of [cx-1.0,cx+1.0]) win(x,Y+.45,fz+.005,.5,.4,WHITE);
-  rbox(.2,.24,.08,'#d23b30',cx+.6,Y+.5,fz+.04,.02); rbox(.22,.04,.1,'#a82a22',cx+.6,Y+.74,fz+.04,.01);   // 牆上的紅色巡邏箱
-  rbox(W+.06,.12,D+.06,PB.blue,cx,Y+gf-.06,cz,.01);                                          // 一二樓中間的藍色腰帶
-  // 二樓＋招牌
-  const y2=Y+gf+.06; rbox(W,ff,D,wallMat(PB.wall,W,ff),cx,y2,cz,.03);
-  plate(pbSign,1.9,.3,cx,y2+.2,fz+.02); for(const x of [cx-1.05,cx-.35,cx+.35,cx+1.05]) win(x,y2+.42,fz+.005,.4,.3,PB.blue);
-  // 屋頂：女兒牆、紅藍警示燈（輪流閃）、天線
-  const top=y2+ff; rbox(W+.08,.06,D+.08,WHITE,cx,top,cz,.01);
-  for(const sz of [-1,1]) rbox(W+.08,.16,.07,PB.blue,cx,top+.06,cz+sz*(D/2),.01); for(const sx of [-1,1]) rbox(.07,.16,D,PB.blue,cx+sx*(W/2),top+.06,cz,.01);
-  { const lr=em('#ff3b30',.3), lb=em('#2f7bff',.3); rbox(.7,.08,.18,'#2f3440',cx,top+.06,fz-.25,.02); rbox(.3,.12,.16,lr,cx-.17,top+.14,fz-.25,.03); rbox(.3,.12,.16,lb,cx+.17,top+.14,fz-.25,.03);
-    anims.push(t=>{ const k=Math.floor(t*3)%2; lr.emissiveIntensity=k?1.2:.15; lb.emissiveIntensity=k?.15:1.2; }); }
-  cyl(.02,.02,.8,'#9aa0ab',cx+1.1,top+.06,cz-.4,6); sphere(.04,'#ff3b30',cx+1.1,top+.88,cz-.4,{emissive:0xff3b30,emissiveIntensity:.5});
-  // 門口：警車、市旗、長椅、花台
-  kit('models/car3/police.glb',cx-2.05,fz+.55,{d:.95,rot:Math.PI/2,y0:Y});
-  flag(cx+1.75,fz+.45,1.7,'city',Y);
-  bench(cx+1.0,fz+.95,0); for(const x of [cx-.75,cx+.75]){ cyl(.16,.14,.2,'#c9ced6',x,Y,fz+.45,12); bush(x,fz+.45,.4,'#ffd166'); }
-  for(const [x,z,k,c] of [[-3.1,-1.15,.6],[3.2,-1.15,.55,'#6fc463']]) tree(x,z,k,c);
+  const pad=halfPad('#e6e0d5');
+  const pos=pad.geometry.attributes.position, uv=pad.geometry.attributes.uv;
+  for(let i=0;i<pos.count;i++) uv.setXY(i,pos.getX(i)*1.1,pos.getZ(i)*1.1);
+  uv.needsUpdate=true;
+  pad.material=pbPaving;
+
+  const y=.1, w=3.18, d=1.60, x=.15, z=-.6, front=z+d/2, wallHeight=1.89;
+  const cream=wallMat(PB.trim,w,.25);
+  rbox(w,wallHeight,d,wallMat(PB.brick,w,wallHeight),x,y,z,.043);
+  rbox(w+.035,.115,d+.035,PB.base,x,y,z,.018);
+  rbox(w+.24,.19,d+.21,cream,x,y+wallHeight-.01,z,.029);
+  rbox(1.19,.12,.24,cream,x,y+wallHeight+.18,front+.018,.018);
+
+  // 中央門廊與上下對齊的分格窗。
+  for(const side of [-1,1]){
+    const edge=x+side*(w/2-.045), pier=x+side*.59, wing=x+side*1.075;
+    rbox(.095,wallHeight,.105,PB.trim,edge,y,front,.012);
+    rbox(.102,wallHeight,.12,PB.trim,pier,y,front+.034,.013);
+    for(const floor of [.33,1.27]){
+      win(wing,y+floor,front+.015,.66,.43,PB.trim);
+      rbox(.66,.023,.035,PB.trim,wing,y+floor+.22,front+.051,.004);
+      rbox(.78,.045,.12,PB.trim,wing,y+floor-.06,front+.032,.009);
+    }
+    const sideWindow=grp(x+side*w/2,y+1.22,z,side*Math.PI/2);
+    win(0,0,0,.79,.41,PB.trim,sideWindow);
+  }
+  rbox(1.24,.13,.58,cream,x,y+.96,front+.22,.022);
+  rbox(.90,.84,.046,PB.trim,x,y+.05,front+.014,.015);
+  rbox(.77,.75,.03,glass,x,y+.083,front+.04,.008);
+  rbox(.023,.75,.038,PB.blue,x,y+.083,front+.058,.004);
+  for(const side of [-1,1]) rbox(.015,.074,.019,'#e1c58e',x+side*.05,y+.38,front+.079,.003);
+  rbox(.95,.032,.17,PB.base,x,y+.003,front+.09,.009);
+  rbox(1.16,.169,.043,'#343033',x,y+.79,front+.465,.008);
+  plate(pbSign,1.12,.151,x,y+.8745,front+.488,0,undefined,{emissive:'#ffffff',emissiveMap:pbSign,emissiveIntensity:.24});
+  for(const [i,side] of [-1,1].entries()){
+    const plaqueX=x+side*.48;
+    rbox(.134,.48,.025,'#243b69',plaqueX,y+.29,front+.06,.006);
+    plate(pbDoorPlates[i],.117,.45,plaqueX,y+.53,front+.074);
+  }
+  plate(pbBadge,.38,.35,x,y+1.47,front+.071,0,undefined,{transparent:true,alphaTest:.5});
+  rbox(.145,.19,.065,'#a14b43',x+.65,y+.43,front+.082,.012);
+
+  const roof=y+wallHeight+.18, lr=em('#ff3b30',.3), lb=em('#2f7bff',.3);
+  rbox(.62,.055,.19,PB.blue,x,roof,z+.23,.012);
+  rbox(.27,.10,.15,lr,x-.15,roof+.055,z+.23,.016);
+  rbox(.27,.10,.15,lb,x+.15,roof+.055,z+.23,.016);
+  anims.push(t=>{ const k=Math.floor(t*3)%2; lr.emissiveIntensity=k?1.2:.15; lb.emissiveIntensity=k?.15:1.2; });
+  flag(x+.53,z-.13,.72,'city',roof);
+
+  kit('models/car3/police.glb',x-2.05,front+.55,{d:.95,rot:Math.PI/2,y0:y});
+  bench(x+1.12,front+.95,0);
+  for(const dx of [-.94,.94]){
+    rbox(.49,.13,.30,PB.base,x+dx,y,front+.33,.024);
+    for(const offset of [-.12,.12]){
+      const shrub=add(new THREE.Mesh(new THREE.IcosahedronGeometry(.113,1),mat('#79a36b',{flatShading:true})));
+      shrub.position.set(x+dx+offset,y+.17,front+.33);
+      shrub.scale.y=.72;
+    }
+  }
+  tree(-3.1,-1.15,.6);
+  tree(3.2,-1.15,.55,'#6fc463');
 }
 
 /* ======================= 台灣傳統廟 ======================= */
@@ -260,6 +315,6 @@ function stationery(){
   for(const [x,z,k,c] of [[-3.1,-1.15,.6],[3.05,-1.15,.55,'#6fc463']]) tree(x,z,k,c);
 }
 
-export const POLICE_LV=[['policebox','派出所 Lv1',policebox,'half']], POLICE_TOP=[0,3.2];
+export const POLICE_LV=[['policebox','派出所 Lv1',policebox,'half']], POLICE_TOP=[0,2.97];
 export const TEMPLE_LV=[['temple','台灣傳統廟 Lv1',()=>temple(1),'half'],['temple2','台灣傳統廟 Lv2',()=>temple(2),'whole']], TEMPLE_TOP=[0,2.6,3.8];
 export const STATIONERY_LV=[['stationery','文具店 Lv1',stationery,'half']], STATIONERY_TOP=[0,3.6];
