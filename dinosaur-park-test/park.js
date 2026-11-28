@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildDinosaurPair } from '../city-v1.3/dinosaur-park.js?v=1';
+import { buildDinosaurPair } from '../city-v1.3/dinosaur-park.js?v=2';
 import { bakeLot } from '../city-v1.3/perf.js';
 
 const stage=document.getElementById('stage');

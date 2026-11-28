@@ -3,7 +3,7 @@
        兒童戲水池（會噴水）、兩台小推車（熱狗堡、紀念品）、步道、長椅、路燈、樹。右格先是草地和小樹。
    Lv2 木星棒球場（右格）：半開放圓頂球場：奶油色外牆＋拱窗、藍綠色環形屋頂（中間開口看得到球場）、
        藍色四層看台、內野紅土、外野條紋草皮、白線和壘包、休息區、背後的計分板、四座照明燈塔、
-       正門（羅馬柱＋雨棚＋招牌＋屋頂上的大棒球放在短柱上）、門前球迷廣場（海報、市旗）。兩格中間的路也鋪起來。
+       正門（羅馬柱＋雨棚＋招牌＋屋頂上的大棒球放在短柱上）、門前球迷廣場（海報、市旗）。兩格共用石磚地基。
    顏色沿用 Blender 檔：藍綠屋頂、奶油外牆、深藍、萬壽菊金邊、藍色座椅、紅土、綠草（只是調柔和一點）。
    英文字全部換成中文（家長：不要真實品牌）；大東西都放在六角格裡面。
    座標：兩格中間為原點，x 沿兩格排列方向，正門朝 +z；左格中心 (-4.44,0)、右格 (4.44,0)；尖頂朝前後（頂點 z=±4.2）。 */
@@ -31,7 +31,7 @@ const paveTex=canvasTex((g,s)=>{ g.fillStyle='#d8cfbf'; g.fillRect(0,0,s,s); con
 const grassTex=canvasTex((g,s)=>{ g.fillStyle='#8fcf72'; g.fillRect(0,0,s,s); const R=rnd(5);
   for(let i=0;i<900;i++){ g.fillStyle=R()<.5?'rgba(60,130,50,.16)':'rgba(255,255,255,.12)'; g.fillRect(R()*s,R()*s,2,4); } },256);
 function texM(tex,rx,ry,o={}){ const t=tex.clone(); t.needsUpdate=true; t.repeat.set(rx,ry); return new THREE.MeshStandardMaterial({map:t,roughness:.9,...o}); }
-function pad(cx){ const g=grp(cx,0,0,Math.PI/6); g.add(hexPad(texM(paveTex,3,3),.42,.09)); }
+function pad(cx){ if(ROOT.userData.joinedCampus) return; const g=grp(cx,0,0,Math.PI/6); g.add(hexPad(texM(paveTex,3,3),.42,.09)); }
 /* 圓角草地（貼地、不會閃）：在 y 高度鋪一片 */
 function lawn(x,z,w,d,r=.4,y=.125){ const s=new THREE.Shape(), hw=w/2, hd=d/2; s.moveTo(-hw+r,-hd); s.lineTo(hw-r,-hd); s.quadraticCurveTo(hw,-hd,hw,-hd+r); s.lineTo(hw,hd-r); s.quadraticCurveTo(hw,hd,hw-r,hd); s.lineTo(-hw+r,hd); s.quadraticCurveTo(-hw,hd,-hw,hd-r); s.lineTo(-hw,-hd+r); s.quadraticCurveTo(-hw,-hd,-hw+r,-hd);
   const geo=new THREE.ShapeGeometry(s); geo.rotateX(-Math.PI/2); const uv=geo.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i,uv.getX(i)/1.5,uv.getY(i)/1.5);
@@ -176,14 +176,17 @@ function scoreRows(){ const cv=document.createElement('canvas'); cv.width=1024; 
   g.fillStyle='#bfe3ef'; ['1','2','3','4','5','6','7','8','9','分','安','失'].forEach((h,i)=>g.fillText(h,X(i),52));
   [['客隊',[0,0,1,0,0,0,'•','•','•',1,4,0]],['主隊',[0,1,0,2,0,0,'•','•','•',3,6,0]]].forEach(([n,v],j)=>{ const yy=150+j*100; g.fillStyle='#fff8ea'; g.fillText(n,110,yy); v.forEach((t,i)=>{ g.fillStyle=i>8?MARI:'#bfe3ef'; g.fillText(String(t),X(i),yy); }); });
   const tx=new THREE.CanvasTexture(cv); tx.colorSpace=THREE.SRGBColorSpace; tx.anisotropy=4; const m=new THREE.Mesh(new THREE.PlaneGeometry(.98,.29),new THREE.MeshBasicMaterial({map:tx,transparent:true,depthWrite:false})); m.userData.noCheck=1; return m; }
-export const BP={face:'side'};   // 'side'：跟家長的檔一樣正門朝中間的路；'front'：正門朝前（縮小成 0.9 倍才塞得進尖頂）
+export const BP={face:'side'};   // 'side'：跟家長的檔一樣正門朝園內廣場；'front'：正門朝前（縮小成 0.9 倍才塞得進尖頂）
 function ballpark(){ const x=CB, Y=.1, front=BP.face==='front', S=front?.9:1, R=front?0:-Math.PI/2, OFF=.135*S;   // OFF：模型範圍中心和球場圓心差 0.135
   pad(x);
-  rbox(1.6,.09,3.9,texM(paveTex,1,3),0,0,0,.03);                         // 兩格中間的路也鋪起來
-  kit('models/ballpark.glb',front?x:x-OFF,0,{y0:Y,rot:R,w:front?6.58*S:null,then:o=>o.traverse(m=>{ if(m.isMesh&&/seams|transom|stitch|Chalk|Scoreboard|padding/.test(m.material.name)){ m.material.polygonOffset=true; m.material.polygonOffsetFactor=-2; m.material.polygonOffsetUnits=-4; m.material.userData.keep=true; } })});   // 貼在別的面上的細條（屋頂接縫、白線…）往前推一點，手機上不閃
+  if(!ROOT.userData.joinedCampus) rbox(1.6,.09,3.9,texM(paveTex,1,3),0,0,0,.03);                         // 兩格共用石磚地基
+  const stadium=grp(0,Y,0);
+  stadium.name='Raised stadium enclosure';
+  stadium.scale.y=1.28;
+  kit('models/ballpark.glb',front?x:x-OFF,0,{parent:stadium,rot:R,w:front?6.58*S:null,then:o=>o.traverse(m=>{ if(m.isMesh&&/seams|transom|stitch|Chalk|Scoreboard|padding/.test(m.material.name)){ m.material.polygonOffset=true; m.material.polygonOffsetFactor=-2; m.material.polygonOffsetUnits=-4; m.material.userData.keep=true; } })});   // 貼在別的面上的細條（屋頂接縫、白線…）往前推一點，手機上不閃
   // Blender 座標 → 這裡：先換成模型自己的座標（lx, lz），縮放、轉向，再移到格子上
-  const P=(bx,by,bz)=>{ const lx=bx*S, lz=-(by-BP_CY)*S, y=Y+(bz-BP_Z0)*S; return front?[x+lx,y,lz]:[x-OFF-lz,y,lx]; };
-  const put=(m,px,py,pz)=>{ if(front) m.position.set(px,py,pz+.012); else { m.position.set(px-.012,py,pz); m.rotation.y=-Math.PI/2; } m.scale.setScalar(S); ROOT.add(m); };
+  const P=(bx,by,bz)=>{ const lx=bx*S, lz=-(by-BP_CY)*S, y=(bz-BP_Z0)*S; return front?[x+lx,y,lz]:[x-OFF-lz,y,lx]; };
+  const put=(m,px,py,pz)=>{ if(front) m.position.set(px,py,pz+.012); else { m.position.set(px-.012,py,pz); m.rotation.y=-Math.PI/2; } m.scale.setScalar(S); stadium.add(m); };
   for(const [t,bx,by,bz,h,w,c] of BP_TXT){ const [px,py,pz]=P(bx,by,bz); put(txtPlane(t,h*1.5,w,c),px,py+h*.35*S,pz); }
   { const [px,py,pz]=P(.05,7.03,.35); put(scoreRows(),px,py,pz); }
 }
@@ -195,4 +198,4 @@ function rightLawn(){ const x=CB; pad(x); lawn(x,-.2,4.2,4.0,.8);
 function gym(lv){ park(lv); if(lv>=2) ballpark(); else rightLawn(); }
 const LV=(id,name,fn,n)=>Array.from({length:n},(_,i)=>[id+(i?i+1:''),name+' Lv'+(i+1),()=>fn(i+1),'double']);
 export const GYM_LV=LV('gym','運動中心',gym,2);
-export const GYM_TOP=[0,1.6,3.4];
+export const GYM_TOP=[0,1.6,4.2];

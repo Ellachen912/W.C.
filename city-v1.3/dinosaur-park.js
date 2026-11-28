@@ -213,7 +213,7 @@ function museum(lot,displayBase) {
 }
 
 async function mount(scene,name,x,z,yaw,length,signal) {
-  const {scene:model,animations}=await loader.loadAsync(new URL('../dinosaur-park-test/models/'+name+'.glb?v='+(name==='trex'?8:7),import.meta.url).href);
+  const {scene:model,animations}=await loader.loadAsync(new URL('../dinosaur-park-test/models/'+name+'.glb?v='+(name==='trex'||name==='brachiosaurus'?8:7),import.meta.url).href);
   if(signal?.aborted){
     model.traverse(o=>{
       if(!o.isMesh) return;
@@ -243,31 +243,6 @@ async function mount(scene,name,x,z,yaw,length,signal) {
   return mixer;
 }
 
-// End each forecourt at the city pavement, leaving the public road clear.
-function roadApproach(lot,dx,dz,startZ){
-  const distance=Math.hypot(dx,dz);
-  const nx=dx/distance, nz=dz/distance;
-  const edge=Math.sqrt(3)*4.2/2;
-  const side=Math.sign(nx)||1;
-  const approach=[0,startZ];
-  const end=[nx*(edge-.21),nz*(edge-.21)];
-  const points=[approach];
-  if(nz<.95){
-    points.push([side*2.16,2.04],[side*2.63,.66]);
-    if(nz<0) points.push([side*2.48,-1.56]);
-  }
-  points.push(end);
-  const strip=[];
-  for(const sign of [-1,1]){
-    for(const i of (sign===-1?points.map((_,i)=>i):points.map((_,i)=>i).reverse())){
-      const [x,z]=points[i], [ax,az]=points[Math.max(0,i-1)], [bx,bz]=points[Math.min(points.length-1,i+1)];
-      const len=Math.hypot(bx-ax,bz-az);
-      strip.push([x+(bz-az)/len*.23*sign,z-(bx-ax)/len*.23*sign]);
-    }
-  }
-  slab(lot,strip,.012,.079,'#ecd8aa');
-}
-
 export function buildDinosaurPair(root,dx,dz,{displayBase=false,signal}={}){
   const park=group(root,'Dinosaur park hex');
   const hall=group(root,'Dinosaur museum hex');
@@ -278,9 +253,6 @@ export function buildDinosaurPair(root,dx,dz,{displayBase=false,signal}={}){
   if(displayBase){
     trail(root,[[dx,dz+2.98,.47],[5.53,-.78,.45],[4.44,-1.36,.43],
       [3.15,dz/2,.40],[2.68,-1.03,.33],[2.20,-.26,.35],[.91,-.23,.35],[.06,-.22,.37]],.069);
-  }else{
-    roadApproach(park,dx,dz,2.94);
-    roadApproach(hall,-dx,-dz,2.95);
   }
 
   const mixers=[];

@@ -167,6 +167,38 @@ export function initLife(ctx){
   /* 11-25 速度：城市沒變的時候，不用每一格都重新整理「蓋了哪些建築」 */
   const ver=ctx.ver||(()=>NaN); let builtVer=-1, builtSet=new Set();
   const built=t=>{ const v=ver(); if(v!==builtVer||v!==v){ builtVer=v; builtSet=new Set(Object.values(curB()).map(r=>r.t)); } return builtSet.has(t); };
+  const streetEdges=nodes.flatMap((n,a)=>[...n.nb].filter(b=>b>a).map(b=>{
+    const end=nodes[b];
+    return {a,b,x:(n.x+end.x)/2,z:(n.z+end.z)/2};
+  }));
+  let streetVer;
+  function syncCampusStreets(){
+    const version=ver();
+    if(streetVer===version) return;
+    streetVer=version;
+    const centers=[];
+    for(const [pid,rec] of Object.entries(curB())){
+      if((rec.t!=='dino'&&rec.t!=='gym')||!rec.occ?.[0]) continue;
+      const a=hexOf(pid), b=hexOf(rec.occ[0]);
+      if(a&&b) centers.push([(a.x+b.x)/2,(a.z+b.z)/2]);
+    }
+    for(const {a,b,x,z} of streetEdges){
+      if(centers.some(([cx,cz])=>Math.hypot(cx-x,cz-z)<.08)){
+        nodes[a].nb.delete(b);
+        nodes[b].nb.delete(a);
+      }else{
+        nodes[a].nb.add(b);
+        nodes[b].nb.add(a);
+      }
+    }
+    for(const mover of movers){
+      if(nodes[mover.a].nb.has(mover.b)) continue;
+      if(mover.t>.5) mover.a=mover.b;
+      mover.prev=-1;
+      mover.t=0;
+      mover.pick();
+    }
+  }
   const nearType=t=>n=>[...n.hex].some(k=>k===t);
   /* 載入 */
   (async()=>{
@@ -475,7 +507,7 @@ export function initLife(ctx){
     { const tg=ctx.target&&ctx.target(), far=!!tg&&camera.position.distanceTo(tg)>60;   // 看全城時居民影子先不畫
       if(far!==farView){ farView=far; } }
     // 車和人：工作車沒有對應建築時不出現
-    syncLive(); syncZebra(); syncPeople(dt); const raining=W.kind==='rain';
+    syncLive(); syncCampusStreets(); syncZebra(); syncPeople(dt); const raining=W.kind==='rain';
     VIS.update(dt); VIS.social(dt,raining,farView); VIS.faceTick(dt); VIS.refresh(ver());
     for(const w of walkers){ if(w.vis){ VIS.step(w,dt,raining); continue; } if(w===avery&&(w.mode==='follow'||w.mode==='visit')) continue; if(w===avery&&w.mode==='wait'){ w.P.anim(dt,{walk:false,ph:w.ph,wave:false,rain:raining}); continue; } if(w===mayor&&VISIT) continue; w.update(dt,raining); }
     if(mayor&&avery){ visitTick(dt); if(!paused){ tripTick(dt); soloTick(dt); duoTick(dt,raining); } }

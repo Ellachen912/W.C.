@@ -246,12 +246,12 @@ import { TRASH_LV, trashBlink } from './s1_trash.js';
 import { HOME_LV } from './s1_home.js';
 import { GARDEN_LV, RANCH_LV } from './s1_farm.js';
 import { binLids } from './s1_trash.js';
-import { initLife } from './life.js';
+import { initLife } from './life.js?v=joined1';
 import { bakeLot, countMeshes } from './perf.js';
 import { drawAquarium, disposeAquariums } from './s2_aquarium.js?v=marine1';
 // Keep rendering museums placed before they were moved to the separate preview.
 import { drawDinosaurMuseum } from './s2_dino.js';
-import { buildDinosaurPair } from './dinosaur-park.js?v=1';
+import { buildDinosaurPair } from './dinosaur-park.js?v=2';
 import { pendingLen, pendingFrom } from './s1_kit.js';   // 11-25：等模型載好再合併
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';   // 家長 11-25：把不會動的小零件合併，畫得更快
 import { ASTRO_LV, ASTRO_TOP, astroTap } from './s2_astro.js';
@@ -268,7 +268,7 @@ import { TEA_LV, TEA_TOP } from './s2_farm2.js';
 import { ORCHARD_LV, ORCHARD_TOP } from './s2_orchard.js';
 import { BANK_LV, BANK_TOP } from './s2_civic.js';
 import { ART_LV, ART_TOP } from './s2_art.js';   // 11-19 美術館改成現代風格
-import { GYM_LV, GYM_TOP } from './s3_gym.js';   // 11-27 運動中心（2 格）
+import { GYM_LV, GYM_TOP } from './s3_gym.js?v=joined1';   // 11-27 運動中心（2 格）
 import { POLICE_LV, POLICE_TOP, TEMPLE_LV, TEMPLE_TOP, STATIONERY_LV, STATIONERY_TOP } from './s2_other.js';
 import { LIBRARY_LV, CLINIC_LV, HOSPITAL_LV, BREAKFAST_LV, MARKET_LV, CONV_LV, PARK_LV } from './s1_more.js';
 
@@ -542,7 +542,7 @@ let UI=null; const groupOf={}; const lotGroups=[]; const tagsEl=document.getElem
    改成每塊地記住自己畫了什麼（lots），只重畫有變動的那幾塊；每塊地的小動畫、旗子、煙等也記在自己名下，拆掉時一起拿掉。 */
 const LISTS=()=>[L.flags,L.anims,L.animals,L.drops,L.spinners,L.puffs,pulses,rotors,blinkers,sewBlink,trashBlink,binLids];
 const lots={}; let cityVer=0, shadowDirty=true; const PERF={before:0,after:0};
-const SHARED=()=>new Set(Object.values(L.mats));
+const SHARED=()=>new Set([...Object.values(L.mats),campusPaving]);
 /* 拆掉／重畫一塊地：零件、這棟自己的材質和貼圖都放掉（共用的材質不動）。原本只放掉零件，升級越多次記憶體越多，iPad 會越來越慢 */
 function dropLot(id){ const o=lots[id]; if(!o) return; scene.remove(o.g); o.g.userData.disposeDinosaurPair?.(); disposeAquariums(o.g); const keep=SHARED(), ms=new Set();
   o.g.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material) for(const m of [].concat(x.material)) if(!keep.has(m)&&m!==L.glassMat&&m!==L.cityFlagMat) ms.add(m); });
@@ -572,6 +572,28 @@ function backHedge(){ const z=-1.42, len=2.6, HG='#5f9a4f';
   L.rbox(len,.12,.13,'#8a6a48',0,.09,z,.02); const h=L.rbox(len-.04,.14,.11,L.mat(HG,{roughness:.9}),0,.2,z,.05);
   for(let i=0;i<9;i++){ const b=L.sphere(.085,L.mat(i%2?'#679f55':'#5a9149',{flatShading:true}),-len/2+.15+i*(len-.3)/8,.34,z); b.scale.set(1.2,.55,.8); }
   for(const s of [-1,1]){ L.cyl(.09,.07,.16,'#b5704f',s*(len/2+.22),.09,z,12); const p=L.sphere(.12,L.mat('#4f8a44',{flatShading:true}),s*(len/2+.22),.33,z); p.scale.y=.9; } }
+const campusTiles=L.canvasTex((ctx,size)=>{
+  ctx.fillStyle='#bdb5a1';ctx.fillRect(0,0,size,size);
+  const colors=['#dfd7c7','#e3dbca','#d9d0be','#e8e0cc'];
+  const w=size/4,h=size/8;
+  for(let j=0;j<8;j++) for(let i=-1;i<=4;i++){
+    ctx.fillStyle=colors[(i+j*3+4)%4];
+    ctx.fillRect(i*w+(j%2)*w/2+2,j*h+2,w-4,h-4);
+  }
+});
+const campusPaving=new THREE.MeshStandardMaterial({map:campusTiles,roughness:.92});
+function campusBase(group,halfDistance){
+  const edge=H/2,a=halfDistance,r=R;
+  const corners=[[-a+edge,r/2],[-a,r],[-a-edge,r/2],[-a-edge,-r/2],[-a,-r],
+    [-a+edge,-r/2],[a-edge,-r/2],[a,-r],[a+edge,-r/2],[a+edge,r/2],[a,r],[a-edge,r/2]];
+  const shape=new THREE.Shape(corners.map(([x,z])=>new THREE.Vector2(x,-z)));
+  const base=slab(shape,.111,-.015,campusPaving);
+  base.name='Connected two-hex tile foundation';
+  const pos=base.geometry.attributes.position,uv=base.geometry.attributes.uv;
+  for(let i=0;i<pos.count;i++) uv.setXY(i,pos.getX(i)*1.15,pos.getZ(i)*1.15);
+  group.add(base);
+}
+
 function renderCity(){
   const B=curB(); cityVer++;
   for(const t of lotTags){ t.remove(); const i=tags.findIndex(x=>x.el===t); if(i>=0) tags.splice(i,1); } lotTags.length=0;
@@ -583,6 +605,11 @@ function renderCity(){
     if(rec.t==='train') STN.dz=RAIL.z1-pos.z;
     if(!lots[pid]) buildLot(pid,sig,()=>{
       const g=new THREE.Group(); g.position.set(pos.x,0,pos.z); g.rotation.y=pos.rot||0; scene.add(g); lotGroups.push(g); groupOf[pid]=g; g.userData.pid=pid; L.setRoot(g);
+      if((rec.t==='dino'||rec.t==='gym')&&rec.occ?.[0]){
+        const first=tilePos(PLOTS[pid].tile), second=tilePos(rec.occ[0]);
+        g.userData.joinedCampus=true;
+        campusBase(g,Math.hypot(first.x-second.x,first.z-second.z)/2);
+      }
       if(PLOTS[pid]&&PLOTS[pid].half&&HALF_FIT[rec.t]&&!(rec.t==='temple'&&rec.lv>=2)){   // 半格建築往前收，背面不要和另一半背靠背（家長 11-19 13:08）
         const [a,k]=HALF_FIT[rec.t], inner=new THREE.Group(); inner.position.z=a; inner.scale.z=k; g.add(inner); g.userData.fit=[a,k];   /* 11-27 A-0：人物路線用畫圖座標，換算時要知道往前收了多少 */ L.setRoot(inner); drawType(rec.t,rec.lv);
         for(const m of [...inner.children]) if(m.isMesh&&m.geometry&&m.geometry.type==='ExtrudeGeometry'){ inner.remove(m); g.add(m); }   // 底盤（半格石板）維持原大小、原位置
