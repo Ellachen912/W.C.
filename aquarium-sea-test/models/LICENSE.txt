@@ -1,0 +1,12 @@
+Model Information:
+* title:	Animals Of The Sea
+* source:	https://sketchfab.com/3d-models/animals-of-the-sea-8f2237ee73cd45ab95d14b7342b88b6d
+* author:	The WarVet (https://sketchfab.com/TheWidowedWarVet)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Animals Of The Sea" (https://sketchfab.com/3d-models/animals-of-the-sea-8f2237ee73cd45ab95d14b7342b88b6d) by The WarVet (https://sketchfab.com/TheWidowedWarVet) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+本展示修改：選取六種動物、減少三角面、調整比例並加入游動與形變動畫。
