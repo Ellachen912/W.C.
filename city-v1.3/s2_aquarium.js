@@ -63,6 +63,14 @@ export function drawAquarium() {
         if (!object.isMesh) return;
         object.castShadow = false;
         object.receiveShadow = true;
+        /* 家長 11-28 加速：模型裡有一個「透光」材質（玩具外殼），three.js 只要畫面上有透光材質，
+           每一格都要把整座城多畫一次給它透光用 → 改成一般半透明，看起來差不多，整座城少畫一半 */
+        for (const material of [].concat(object.material)) {
+          if (material && material.transmission > 0) {
+            material.transmission = 0; material.transparent = true;
+            material.opacity = Math.min(material.opacity ?? 1, .5); material.depthWrite = false; material.needsUpdate = true;
+          }
+        }
       });
       const { minY } = stripAquariumGround(gltf.scene);
       gltf.scene.position.y = aquariumLift(minY);

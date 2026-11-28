@@ -10,9 +10,17 @@ export function mat(c,o={}){ const k=c+JSON.stringify(o); return mats[k]||(mats[
 export const M=c=> c.isMaterial?c:mat(c);
 export function add(mesh,parent){ mesh.castShadow=true; mesh.receiveShadow=true; (parent||ROOT).add(mesh); return mesh; }
 // 圓角方塊：(x,z) 是中心，y 是底部
-export function rbox(w,h,d,c,x,y,z,r=.05,parent){ const m=add(new THREE.Mesh(new RoundedBoxGeometry(w,h,d,3,Math.min(r,w/2-.001,h/2-.001,d/2-.001)),M(c)),parent); m.position.set(x,y+h/2,z); return m; }
-export function cyl(rt,rb,h,c,x,y,z,seg=24,parent){ const m=add(new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),M(c)),parent); m.position.set(x,y+h/2,z); return m; }
-export function sphere(r,c,x,y,z,o={},parent){ const m=add(new THREE.Mesh(new THREE.SphereGeometry(r,24,16),c.isMaterial?c:mat(c,o)),parent); m.position.set(x,y,z); return m; }
+/* 第三階段加速（家長 11-28 08:33）：圓角盒子、圓柱、球照大小決定要切幾刀——
+   小東西切太細看不出來，卻佔了全城大半的三角形（一個圓角盒子原本 588 個三角形）。
+   很小的盒子用一般盒子（12）；中等的圓角切 1 刀（108）；大的切 2 刀（300）。 */
+const rboxGeo=(w,h,d,r)=>{ const m=Math.max(w,h,d), rr=Math.min(r,w/2-.001,h/2-.001,d/2-.001);
+  if(m<.1||rr<.008) return new THREE.BoxGeometry(w,h,d);
+  return new RoundedBoxGeometry(w,h,d,m<.7?1:2,rr); };
+export function rbox(w,h,d,c,x,y,z,r=.05,parent){ const m=add(new THREE.Mesh(rboxGeo(w,h,d,r),M(c)),parent); m.position.set(x,y+h/2,z); return m; }
+export function cyl(rt,rb,h,c,x,y,z,seg=24,parent){ const R=Math.max(rt,rb); if(seg===24) seg=R<.05?10:R<.18?16:24;   // 細的柱子不用切 24 邊
+  const m=add(new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),M(c)),parent); m.position.set(x,y+h/2,z); return m; }
+export function sphere(r,c,x,y,z,o={},parent){ const [a,b]=r<.05?[10,8]:r<.18?[16,12]:[24,16];   // 小球不用切那麼細
+  const m=add(new THREE.Mesh(new THREE.SphereGeometry(r,a,b),c.isMaterial?c:mat(c,o)),parent); m.position.set(x,y,z); return m; }
 export const GOLDM=()=>mat('#f2c14e',{metalness:.5,roughness:.3});
 // 四坡屋頂（hip roof），w 沿 x、d 沿 z
 export function hipGeom(w,d,h){

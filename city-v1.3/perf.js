@@ -17,16 +17,17 @@ function sig(geo){ const a=geo.attributes, ks=Object.keys(a).sort();
 /* 找出會動的零件：記下每個零件的位置，跑這棟的小動畫幾次，有變的就是會動的；最後把位置還原 */
 const mstate=m=>[m.color?m.color.getHex():0,m.emissive?m.emissive.getHex():0,m.emissiveIntensity,m.opacity,m.visible].join();
 function findMoving(root,anims,known){
-  const moving=new Set(known), snap=[], msnap=new Map();
+  const moving=new Set(known), snap=[], msnap=new Map(), toggles=new Set();
   root.traverse(o=>{ if(o.userData.moving) moving.add(o); snap.push([o,o.position.clone(),o.quaternion.clone(),o.scale.clone(),o.visible,o.geometry&&o.geometry.attributes.position?o.geometry.attributes.position.version:-1]);
     if(o.material&&!Array.isArray(o.material)&&!msnap.has(o.material)) msnap.set(o.material,mstate(o.material)); });
   for(const t of SAMPLES) for(const f of anims){ try{ f(t,.016); }catch(e){} }
   for(const [o,p,q,s,v,ver] of snap){
+    if(o.visible!==v) toggles.add(o);
     if(!o.position.equals(p)||!o.quaternion.equals(q)||!o.scale.equals(s)||o.visible!==v||(ver>=0&&o.geometry.attributes.position.version!==ver)) moving.add(o);
     o.position.copy(p); o.quaternion.copy(q); o.scale.copy(s); o.visible=v; }
   const blink=new Set(); for(const [m,st] of msnap) if(mstate(m)!==st) blink.add(m);   // 會閃、會變色的材質
   for(const o of known) if(o&&o.material) blink.add(o.material);
-  moving.blink=blink; return moving;
+  moving.blink=blink; moving.toggles=toggles; return moving;
 }
 
 /* 小貼圖拼成大貼圖：只拼「整張貼一次」的（UV 在 0～1、沒有重複、沒有位移、沒有上下翻轉），其他維持原樣 */
@@ -94,7 +95,17 @@ export function bakeLot(root,{anims=[],known=[],flat=true}={}){
     M.castShadow=f.castShadow; M.receiveShadow=f.receiveShadow; M.renderOrder=f.renderOrder; M.userData.baked=list.length;
     for(const [m] of list){ m.parent.remove(m); m.geometry.dispose(); }   // 舊零件已經送進顯示卡了，要放掉，不然記憶體會一直漲
     A.add(M); after++; }
-  return {before,after};
+  /* 家長 11-28 加速：合併後還剩下的小零件（多半是會動的小東西）記下來，鏡頭離很遠、小到看不到時就先不畫。
+     自己會開關顯示的零件（和它底下的）不碰，免得跟它的動畫打架 */
+  const skip=new Set(); for(const o of moving.toggles) o.traverse(x=>skip.add(x));
+  const detail=[], wp=new THREE.Vector3(), ws=new THREE.Vector3(), wq=new THREE.Quaternion();
+  root.updateMatrixWorld(true);
+  root.traverse(m=>{ if(!m.isMesh||m.userData.baked||!m.visible||skip.has(m)||m.userData.keep) return;
+    for(let p=m.parent;p&&p!==root;p=p.parent) if(!p.visible||skip.has(p)) return;
+    const g=m.geometry; if(!g) return; if(!g.boundingSphere) g.computeBoundingSphere(); if(!g.boundingSphere) return;
+    m.matrixWorld.decompose(wp,wq,ws); const r=g.boundingSphere.radius*Math.max(Math.abs(ws.x),Math.abs(ws.y),Math.abs(ws.z));
+    if(r<.35) detail.push([m,r]); });
+  return {before,after,detail};
 }
 
 /* 數一棟（或整個場景）有幾個要畫的零件 */

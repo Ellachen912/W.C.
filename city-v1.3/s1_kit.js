@@ -30,6 +30,7 @@ function load(p){ if(!cache[p]) cache[p]=p.endsWith('.obj')?loadObj(p):loadGlb(p
 export const FARMB=n=>`models/farm/${n}.obj`, FOOD=n=>`models/food/${n}.obj`, ANIMAL=n=>`models/animals/${n}.obj`;
 export const FT=n=>`models/ft/${n}.glb`, FUR=n=>`models/fur/${n}.glb`, MKT='models/mkt/market.glb';
 export const IND=n=>`models/ind/${n}.glb`, SUB=n=>`models/sub/${n}.glb`, COM=n=>`models/com/${n}.glb`;
+const noTrans=mt=>{ if(!mt||!(mt.transmission>0)) return mt; const c=mt.clone(); c.transmission=0; c.transparent=true; c.opacity=Math.min(c.opacity??1,.5); c.depthWrite=false; return c; };
 export function kit(path,x,z,{w=null,h=null,d=null,rot=0,y0=0,map=null,spin=null,rotors=null,parent=null,node=null,then=null}={}){
   const g=new THREE.Group(); g.position.set(x,y0,z); (parent||ROOT).add(g);
   const p=load(path).then(gl=>{
@@ -37,6 +38,8 @@ export function kit(path,x,z,{w=null,h=null,d=null,rot=0,y0=0,map=null,spin=null
       gl.scene.updateMatrixWorld(true); o=src.clone(true); src.matrixWorld.decompose(o.position,o.quaternion,o.scale); o.position.set(0,0,0); }
     else o=gl.scene.clone(true);
     o.traverse(m=>{ if(m.isMesh){ m.castShadow=true; m.receiveShadow=true; if(map&&m.material.map){ m.material=m.material.clone(); m.material.map=kitMap(map); } } });
+    /* 家長 11-28 加速：下載的模型有「透光」材質時，three.js 每一格要把整座城多畫一次 → 改成一般半透明 */
+    o.traverse(m=>{ if(!m.isMesh) return; m.material=Array.isArray(m.material)?m.material.map(noTrans):noTrans(m.material); });
     const wrap=new THREE.Group(); wrap.add(o); wrap.rotation.y=rot;
     const b=new THREE.Box3().setFromObject(wrap), sz=b.getSize(new THREE.Vector3());
     const k=w?w/sz.x:(h?h/sz.y:(d?d/sz.z:1)); wrap.scale.setScalar(k);

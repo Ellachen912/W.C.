@@ -562,7 +562,7 @@ function buildLot(id,sig,draw,cx,cz){ const lens=LISTS().map(a=>a.length), pl=pe
 /* 合併零件放到之後慢慢做（每一格畫面做一點），一打開遊戲不會因此多等；只蓋一兩棟時馬上做完 */
 const bakeQ=[];
 function bakeSome(ms){ const t0=performance.now(); while(bakeQ.length&&performance.now()-t0<ms){ const id=bakeQ.shift(), o=lots[id]; if(!o||o.baked) continue; o.baked=1;
-  try{ const B=curB(), r=bakeLot(o.g,{anims:o.mine,known:o.known,flat:!(B[id]&&B[id].t==='observatory')}); PERF.before+=r.before; PERF.after+=r.after; shadowDirty=true; }catch(e){ console.warn('bake',id,e); } } }
+  try{ const B=curB(), r=bakeLot(o.g,{anims:o.mine,known:o.known,flat:!(B[id]&&B[id].t==='observatory')}); PERF.before+=r.before; PERF.after+=r.after; o.detail=r.detail||[]; shadowDirty=true; }catch(e){ console.warn('bake',id,e); } } }
 let selPid=null;   /* 家長 11-12：建築名牌平常不顯示，點到那棟才出現 */
 function addTag(label,sub,cls,p,onclick,pid){ const b=document.createElement('button'); b.type='button'; b.className='tag '+cls; b.innerHTML=`${label}<small>${sub}</small>`; b.onclick=onclick; tagsEl.appendChild(b); tags.push({el:b,p,pid}); return b; }
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -642,6 +642,7 @@ function tapPlot(pid){ if(PLOTS[pid]&&PLOTS[pid].zone==='none'&&!TM.on){ setHi([
 const cam2=new THREE.PerspectiveCamera(32,1,1,320);
 function snap(pos,k){   // 從固定角度拍一張這棟建築的小圖（不影響畫面，下一格就會畫回來）
   const W=canvas.clientWidth,H=canvas.clientHeight; cam2.aspect=W/H; cam2.updateProjectionMatrix();
+  for(const id in lots) for(const d of lots[id].detail||[]) d[0].visible=true;   /* 拍照是從近的地方拍，小零件要畫出來（下一次檢查會再照距離收起來） */
   cam2.position.set(pos.x+9*k,12*k+1,pos.z+17*k); cam2.lookAt(pos.x,1.2*k+.6,pos.z); renderer.render(scene,cam2);
   const side=Math.min(W,H)*.9, px=renderer.getPixelRatio(), out=document.createElement('canvas'); out.width=out.height=260; const g=out.getContext('2d');
   g.fillStyle='#bfe6f6'; g.fillRect(0,0,260,260); g.drawImage(canvas,(W-side)/2*px,(H-side)/2*px,side*px,side*px,0,0,260,260); return out.toDataURL('image/jpeg',.82);
@@ -773,7 +774,7 @@ if(previewAquarium){
   controls.target.set(pos.x,2,pos.z); camera.position.set(pos.x+4,6.5,pos.z+10.8); controls.update();
 }
 renderCity();
-let LIFE=null; window.__life=()=>LIFE; if(new URLSearchParams(location.search).get('dev')==='1') window.__wc={THREE,camera,controls,groupOf,plotPos,TM,renderCity,get follow(){ return !!follow; }};   /* 11-27：測試用（網址加 ?dev=1 才有） */ try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
+let LIFE=null; window.__life=()=>LIFE; if(new URLSearchParams(location.search).get('dev')==='1') window.__wc={THREE,camera,controls,groupOf,plotPos,TM,renderCity,get follow(){ return !!follow; }, get renderer(){ return renderer; }, scene, bakeAll:()=>{ bakeSome(1e9); return {left:bakeQ.length, wait:Object.values(lots).filter(o=>o.wait).length}; }};   /* 11-27：測試用（網址加 ?dev=1 才有） */ try{ LIFE=initLife({scene,hexes,R:RR,riverX,camera,sun,hemi,sea,fog:scene.fog,UI:()=>UI,curB,TM,tagsEl,target:()=>controls.target,ver:()=>cityVer,lotGroup:pid=>groupOf[pid]}); }catch(e){ console.error(e); }
 
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clk=new THREE.Clock(); const v3=new THREE.Vector3();
@@ -781,7 +782,7 @@ const clk=new THREE.Clock(); const v3=new THREE.Vector3();
 const frus=new THREE.Frustum(), pv=new THREE.Matrix4(), lotSeen={}; let shadowTick=0;
 function updateSeen(){ pv.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse); frus.setFromProjectionMatrix(pv); for(const id in lots) lotSeen[id]=frus.intersectsSphere(lots[id].c); }
 const seen=o=>!o.__lot||lotSeen[o.__lot]!==false;
-let seaTick=0, lvFrame=0;
+let seaTick=0, lvFrame=0, detailTick=0; const dv=new THREE.Vector3(), DETAIL_K=.0022;
 renderer.setAnimationLoop(()=>{
   /* 家長 11-20 12:43：「蓋好了／升級」畫面打開時，後面的城市被半透明蓋住，只要每 3 格畫 1 次，手機把力氣留給彩帶和彈出動畫，不會卡 */
   if(document.querySelector('.lvup')){ if((lvFrame++%3)!==0) return; } else lvFrame=0;
@@ -806,8 +807,14 @@ renderer.setAnimationLoop(()=>{
   } else L.animPuffs(0);
   for(let i=bounces.length-1;i>=0;i--){ const b=bounces[i]; b.t+=dt; const e=Math.sin(Math.PI*Math.min(1,b.t/.7))*Math.exp(-b.t*1.5); b.g.scale.set(1+.04*e,1+.14*e,1+.04*e); if(b.t>.8){ b.g.scale.set(1,1,1); bounces.splice(i,1); } }
   if(bakeQ.length) bakeSome(8);
+  /* 家長 11-28 加速：每 6 格檢查一次，鏡頭很遠時小到只剩兩三個點的小零件先不畫（拉近就出現） */
+  if((detailTick++%6)===0){ const cp=camera.position; for(const id in lots){ const o=lots[id]; if(!o.detail||lotSeen[id]===false) continue;
+    for(const d of o.detail){ const m=d[0]; m.getWorldPosition(dv); const show=d[1]>cp.distanceTo(dv)*DETAIL_K; if(m.visible!==show) m.visible=show; } } }
   controls.update();
-  if(shadowDirty||(shadowTick++&1)===0){ renderer.shadowMap.needsUpdate=true; shadowDirty=false; }
+  /* 家長 11-28 加速：會動的東西（居民、車子、動物、建築裡會動的零件）本來就不投影子，影子只有建築和地形 →
+     影子貼圖只在城市改變（蓋好、升級、拆掉、合併完、蓋好時彈一下）時重算，平常不用每 2 格重畫一次整座城 */
+  if(bounces.length) shadowDirty=true;
+  if(shadowDirty){ renderer.shadowMap.needsUpdate=true; shadowDirty=false; }
   renderer.render(scene,camera);
   const W=innerWidth,H2=innerHeight;
   if(LIFE) LIFE.update(dt,t,v3,W,H2);
