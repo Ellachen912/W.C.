@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>溪谷動物園 · Winston City</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#e1ede5;color:#25463c;font:15px system-ui,sans-serif}canvas{display:block;width:100%;height:100dvh;touch-action:none}header,nav{position:fixed;background:#fff9ed;border:1px solid #e2d9bf;border-radius:15px;padding:12px 15px;box-shadow:0 4px 24px #2345371c}header{top:14px;left:14px;pointer-events:none}nav{bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:center;width:max-content;max-width:95vw}h1{margin:0;font-size:22px}p{margin:4px 0 0;font-size:13px}button{min-height:42px;border:1px solid #c5d4c7;border-radius:9px;background:#fffdf4;color:inherit;font:inherit;padding:0 9px}a{color:inherit;font-size:12px}
+*{box-sizing:border-box}body{margin:0;background:#e1ede5;color:#25463c;font:15px system-ui,sans-serif}canvas{display:block;width:100%;height:100dvh;touch-action:none}header,nav{position:fixed;background:#fff9ed;border:1px solid #e2d9bf;border-radius:15px;padding:12px 15px;box-shadow:0 4px 24px #2345371c}header{top:14px;left:14px;pointer-events:none}nav{bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:center;width:max-content;max-width:95vw}h1{margin:0;font-size:22px}p{margin:4px 0 0;font-size:13px}button{min-height:42px;border:1px solid #c5d4c7;border-radius:9px;background:#fffdf4;color:inherit;font:inherit;padding:0 9px}a{color:inherit;font-size:12px}button[aria-pressed=true]{background:#dcebdd}#route-note{flex-basis:100%;font-size:13px}#route-note ul{margin:4px 0 0;padding-inline-start:18px}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -13,7 +13,12 @@
 <header><h1>溪谷動物園</h1><p id="status">載入園區中…</p></header>
 <nav aria-label="觀景切換">
 <button data-view="all">全園</button><button data-view="creek">貼水窗</button><button data-view="forest">草地近觀</button>
+<button id="routes" type="button" aria-pressed="false">走路規劃</button>
 <a href="https://sketchfab.com/3d-models/low-poly-animals-4e5d0b71c2de49189dfa81476f4ae203">EdwinRC 動物素材</a><a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
+<div id="route-note" hidden>
+<strong>短程往返，分批出發</strong>
+<ul><li>象沿水灣與草地分開走，停下輕擺鼻子。</li><li>長頸鹿各走向一棵傘冠樹，停下轉頭。</li><li>鴕鳥沿前草地各走一段，停下張望。</li><li>兩隻鹿先留在林坡，獨立轉頭或動耳。</li></ul>
+</div>
 </nav>
-<script type="module" src="./zoo.js?v=4"></script>
+<script type="module" src="./zoo.js?v=5"></script>
 </html>

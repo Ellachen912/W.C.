@@ -175,13 +175,46 @@ for(let i=1;i<outline.length;i++){
 L.cyl(.023,.026,.59,metal,.62,.05,edge,6,perimeter);
 
 const animals=[
-  [creek,'elephant',-.69,.159,-.31,1.67,2.0],
-  [creek,'elephant',.29,.159,.18,.96,1.16],
+  [creek,'elephant',-.85,.159,-.22,1.67,2.0],
+  [creek,'elephant',1.18,.093,-.16,.96,1.16],
   [savanna,'giraffe',1.05,.093,.13,1.89,-.60],
+  [savanna,'giraffe',2.44,.093,.66,1.31,.28],
   [forest,'ostrich',.32,.093,2.29,1.02,-.40],
+  [forest,'ostrich',1.63,.093,1.67,.98,.80],
   [forest,'doe',1.44,.76,-1.54,.75,-.48],
   [forest,'stag',.91,.76,-2.34,.87,1.1],
 ];
+
+// Routes are proposals in local habitat coordinates. Each starts at the displayed animal.
+const plans=[
+  {animal:0,color:'#2d756a',stops:[[-.95,-.56],[-.76,-.98]]},
+  {animal:1,color:'#2d756a',stops:[[1.58,-.33],[1.99,-.30]]},
+  {animal:2,color:'#a2662b',stops:[[.63,-.28],[.49,-.79]]},
+  {animal:3,color:'#a2662b',stops:[[2.56,.18],[2.64,-.42]]},
+  {animal:4,color:'#8d5379',stops:[[.04,2.64],[-.25,2.82]]},
+  {animal:5,color:'#8d5379',stops:[[1.96,1.46],[2.45,1.44]]},
+];
+const routes=group(site,'動物短程路線');
+for(const {animal,color,stops} of plans){
+  const [habitat,,x,y,z]=animals[animal];
+  const route=group(routes,'預定走路方向',habitat.position.x);
+  const points=[[x,z],...stops];
+  ribbon(route,points.map(([px,pz])=>[px,y+.035,pz]),.065,color);
+  const [ax,az]=points.at(-2),[bx,bz]=points.at(-1);
+  const len=Math.hypot(bx-ax,bz-az);
+  const dx=(bx-ax)/len,dz=(bz-az)/len;
+  patch(route,[[bx+dx*.12,bz+dz*.12],[bx-dx*.09-dz*.10,bz-dz*.09+dx*.10],
+    [bx-dx*.09+dz*.10,bz-dz*.09-dx*.10]],y+.034,.006,color);
+  L.cyl(.052,.052,.014,color,bx,y+.035,bz,9,route);
+}
+routes.visible=false;
+const routeButton=document.querySelector('#routes');
+const routeNote=document.querySelector('#route-note');
+routeButton.onclick=()=>{
+  routes.visible=!routes.visible;
+  routeButton.setAttribute('aria-pressed',String(routes.visible));
+  routeNote.hidden=!routes.visible;
+};
 const loader=new GLTFLoader();
 const models=new Map();
 function loadAnimal(id){
