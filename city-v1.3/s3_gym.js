@@ -182,7 +182,7 @@ function ballpark(){ const x=CB, Y=.1, front=BP.face==='front', S=front?.9:1, R=
   if(!ROOT.userData.joinedCampus) rbox(1.6,.09,3.9,texM(paveTex,1,3),0,0,0,.03);                         // 兩格共用石磚地基
   const stadium=grp(0,Y,0);
   stadium.name='Raised stadium enclosure';
-  stadium.scale.y=1.28;
+  stadium.scale.y=1.536;
   kit('models/ballpark.glb',front?x:x-OFF,0,{parent:stadium,rot:R,w:front?6.58*S:null,then:o=>o.traverse(m=>{ if(m.isMesh&&/seams|transom|stitch|Chalk|Scoreboard|padding/.test(m.material.name)){ m.material.polygonOffset=true; m.material.polygonOffsetFactor=-2; m.material.polygonOffsetUnits=-4; m.material.userData.keep=true; } })});   // 貼在別的面上的細條（屋頂接縫、白線…）往前推一點，手機上不閃
   // Blender 座標 → 這裡：先換成模型自己的座標（lx, lz），縮放、轉向，再移到格子上
   const P=(bx,by,bz)=>{ const lx=bx*S, lz=-(by-BP_CY)*S, y=(bz-BP_Z0)*S; return front?[x+lx,y,lz]:[x-OFF-lz,y,lx]; };
@@ -198,4 +198,4 @@ function rightLawn(){ const x=CB; pad(x); lawn(x,-.2,4.2,4.0,.8);
 function gym(lv){ park(lv); if(lv>=2) ballpark(); else rightLawn(); }
 const LV=(id,name,fn,n)=>Array.from({length:n},(_,i)=>[id+(i?i+1:''),name+' Lv'+(i+1),()=>fn(i+1),'double']);
 export const GYM_LV=LV('gym','運動中心',gym,2);
-export const GYM_TOP=[0,1.6,4.2];
+export const GYM_TOP=[0,1.6,5.02];
